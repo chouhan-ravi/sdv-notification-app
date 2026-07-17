@@ -1,0 +1,6 @@
+{
+  "name": "SDV Vehicle Platform Notification System",
+  "description": "An enterprise rules management and real-time vehicle event evaluation playground for Software Defined Vehicles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
