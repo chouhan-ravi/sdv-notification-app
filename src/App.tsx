@@ -18,6 +18,7 @@ import NotificationSettings from './components/NotificationSettings';
 import AfterSalesMaintenance from './components/AfterSalesMaintenance';
 import SchedulerConfig from './components/SchedulerConfig';
 import CategoryKeyManager from './components/CategoryKeyManager';
+import TranslationManager from './components/TranslationManager';
 import { 
   Shield, 
   Settings, 
@@ -39,7 +40,8 @@ import {
   Moon,
   Wrench,
   Clock,
-  Network
+  Network,
+  Globe
 } from 'lucide-react';
 
 export default function App() {
@@ -52,7 +54,7 @@ export default function App() {
   const [categories, setCategories] = useState<DynamicCategory[]>([]);
   const [ruleKeys, setRuleKeys] = useState<DynamicRuleKey[]>([]);
   
-  const [activeScreen, setActiveScreen] = useState<'simulator' | 'rules' | 'settings' | 'after_sales' | 'scheduler' | 'category_keys'>('simulator');
+  const [activeScreen, setActiveScreen] = useState<'simulator' | 'rules' | 'settings' | 'after_sales' | 'scheduler' | 'category_keys' | 'i18n'>('simulator');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [ruleToEdit, setRuleToEdit] = useState<Rule | null>(null);
   const [activeRuleKeyFilter, setActiveRuleKeyFilter] = useState<string | null>(null);
@@ -80,6 +82,18 @@ export default function App() {
       return next;
     });
   };
+
+  // Sync theme with document.documentElement
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'fuchsia-light') {
+      root.classList.add('fuchsia-light');
+      root.style.backgroundColor = '#fdf4ff';
+    } else {
+      root.classList.remove('fuchsia-light');
+      root.style.backgroundColor = '#020617';
+    }
+  }, [theme]);
 
   // Initialize and load from local storage
   useEffect(() => {
@@ -483,7 +497,7 @@ export default function App() {
       )}
 
       {/* MOBILE TOP NAVIGATION BAR */}
-      <div className="lg:hidden bg-slate-950 border-b border-slate-900 p-4 sticky top-0 z-40 flex items-center justify-between">
+      <div className="lg:hidden bg-slate-950 border-b border-slate-800 p-4 sticky top-0 z-40 flex items-center justify-between">
         <div className="flex items-center space-x-2.5">
           <div className="p-1.5 rounded-lg bg-gradient-to-tr from-indigo-900 to-indigo-600 text-white shadow">
             <Shield className="h-4 w-4" />
@@ -504,13 +518,13 @@ export default function App() {
 
       {/* LEFT SIDEBAR MENU BAR (Responsive Desktop-First Sidebar) */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 bg-slate-950 border-r border-slate-900 flex flex-col z-40 p-4 shrink-0 transition-all duration-300
+        fixed lg:static inset-y-0 left-0 bg-slate-950 border-r border-slate-800 flex flex-col z-40 p-4 shrink-0 transition-all duration-300
         ${sidebarCollapsed ? 'lg:w-20' : 'lg:w-64'}
         ${mobileSidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full lg:translate-x-0'}
       `}>
         
         {/* LOGO & BRAND */}
-        <div className={`flex ${sidebarCollapsed ? 'flex-col items-center space-y-3' : 'items-center space-x-3'} mb-5 pb-4 border-b border-slate-900 transition-all duration-300`}>
+        <div className={`flex ${sidebarCollapsed ? 'flex-col items-center space-y-3' : 'items-center space-x-3'} mb-5 pb-4 border-b border-slate-800 transition-all duration-300`}>
           <div className="p-2 rounded-xl bg-gradient-to-tr from-indigo-950 to-indigo-600 text-white shadow-lg shadow-indigo-600/10 flex items-center justify-center shrink-0">
             <Shield className="h-5 w-5" />
           </div>
@@ -532,7 +546,7 @@ export default function App() {
             onClick={handleToggleSidebar}
             type="button"
             title={sidebarCollapsed ? "Switch to Full View" : "Switch to Icon View"}
-            className="p-1.5 rounded-lg border border-slate-900 bg-slate-950 text-slate-400 hover:text-indigo-400 hover:border-slate-800 transition flex items-center space-x-1 text-[10px] font-mono font-bold"
+            className="p-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-400 hover:text-indigo-400 hover:border-slate-800 transition flex items-center space-x-1 text-[10px] font-mono font-bold"
           >
             {sidebarCollapsed ? (
               <ChevronRight className="h-4 w-4 text-indigo-400" />
@@ -633,17 +647,30 @@ export default function App() {
                 <Clock className="h-4.5 w-4.5 shrink-0" />
                 {!sidebarCollapsed && <span className="truncate">Proactive Schedulers</span>}
               </button>
+
+              <button
+                onClick={() => { setActiveScreen('i18n'); setMobileSidebarOpen(false); }}
+                title="Locale & i18n Studio"
+                className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center p-2.5' : 'space-x-2.5 px-3 py-2'} rounded-xl text-xs font-bold transition duration-150 uppercase tracking-wide ${
+                  activeScreen === 'i18n'
+                    ? 'bg-indigo-600/15 border border-indigo-500/30 text-indigo-400 font-extrabold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent'
+                }`}
+              >
+                <Globe className="h-4.5 w-4.5 shrink-0" />
+                {!sidebarCollapsed && <span className="truncate">Locale & i18n Studio</span>}
+              </button>
             </nav>
           </div>
 
           {/* QUICK CONTROLS AREA */}
-          <div className="pt-4 border-t border-slate-900">
+          <div className="pt-4 border-t border-slate-800">
             {!sidebarCollapsed ? (
               <span className="block text-[9px] font-bold text-slate-500 font-mono tracking-wider mb-2 uppercase px-2 transition-opacity duration-300">
                 Registry Actions
               </span>
             ) : (
-              <div className="h-px bg-slate-900 my-3" />
+              <div className="h-px bg-slate-800 my-3" />
             )}
             <div className="space-y-1.5">
               <button
@@ -693,7 +720,7 @@ export default function App() {
         </div>
 
         {/* METADATA SUMMARY */}
-        <div className="pt-4 border-t border-slate-900 text-[10px] font-mono text-slate-600 space-y-1">
+        <div className="pt-4 border-t border-slate-800 text-[10px] font-mono text-slate-600 space-y-1">
           {sidebarCollapsed ? (
             <div className="text-center text-[9px] text-slate-500 font-mono">v2.4</div>
           ) : (
@@ -717,7 +744,7 @@ export default function App() {
         
         <div className="space-y-6">
           {/* TOP MENU BAR WITH PROFILE AND THEME TOGGLE */}
-          <div className="flex items-center justify-between border-b border-slate-900 pb-4">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
             <div className="flex flex-col">
               <h2 className="text-sm font-bold font-display uppercase tracking-widest text-slate-400">
                 SDV Vehicle Notification Gateway
@@ -761,7 +788,7 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
             {/* SCREEN-SPECIFIC VIEWS */}
-            <div className={`${(activeScreen === 'settings' || activeScreen === 'after_sales' || activeScreen === 'scheduler' || activeScreen === 'category_keys') ? 'lg:col-span-12' : 'lg:col-span-8'} flex flex-col space-y-4`}>
+            <div className={`${(activeScreen === 'settings' || activeScreen === 'after_sales' || activeScreen === 'scheduler' || activeScreen === 'category_keys' || activeScreen === 'i18n') ? 'lg:col-span-12' : 'lg:col-span-8'} flex flex-col space-y-4`}>
               
               {activeScreen === 'simulator' && (
                 <div className="space-y-4">
@@ -862,10 +889,25 @@ export default function App() {
                 </div>
               )}
 
+              {activeScreen === 'i18n' && (
+                <div className="space-y-4">
+                  <TranslationManager
+                    rules={rules}
+                    userSettings={userSettings}
+                    onUpdateRule={(updatedRule) => {
+                      const updated = rules.map(r => r.id === updatedRule.id ? updatedRule : r);
+                      saveRulesToLocalStorage(updated);
+                    }}
+                    onUpdateUserSettings={saveUserSettingsToLocalStorage}
+                    triggerToast={triggerToast}
+                  />
+                </div>
+              )}
+
             </div>
 
             {/* SIDEBAR HISTORICAL AUDIT LOGS (Only visible in Simulation & Rules views) */}
-            {(activeScreen !== 'settings' && activeScreen !== 'after_sales' && activeScreen !== 'scheduler' && activeScreen !== 'category_keys') && (
+            {(activeScreen !== 'settings' && activeScreen !== 'after_sales' && activeScreen !== 'scheduler' && activeScreen !== 'category_keys' && activeScreen !== 'i18n') && (
               <div className="lg:col-span-4">
                 <AuditLog 
                   logs={logs} 
@@ -879,7 +921,7 @@ export default function App() {
         </div>
 
         {/* FOOTER */}
-        <footer className="border-t border-slate-900 pt-6 mt-12 text-slate-600 text-[10px] font-mono flex flex-col sm:flex-row justify-between items-center gap-2">
+        <footer className="border-t border-slate-800 pt-6 mt-12 text-slate-600 text-[10px] font-mono flex flex-col sm:flex-row justify-between items-center gap-2">
           <span>SDV GATEWAY SYSTEM // SECURE ENVELOPE: PASS</span>
           <span>© 2026 AUTOMOTIVE EDGE NETWORKS</span>
         </footer>

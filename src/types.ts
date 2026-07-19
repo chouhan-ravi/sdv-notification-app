@@ -44,6 +44,13 @@ export interface CarOwnerSetting {
   categoryKey: string; // e.g. PLUG_N_CHARGE, VEHICLE_REMOTE_CONTROL
   ruleKey?: string; // Optional specific rule key filter, e.g. RULE_REM_START_SUCCESS_CONFIRM
   enabled: boolean; // Custom toggle by the owner
+  language?: string; // Preferred locale/language, e.g. 'es', 'fr', 'de', 'zh', 'ja', 'en'
+}
+
+export interface RuleTranslation {
+  locale: string; // e.g. "es", "fr", "de", "zh", "ja"
+  notificationTitle: string;
+  notificationBody: string;
 }
 
 export interface Rule {
@@ -60,6 +67,7 @@ export interface Rule {
   notificationBody: string; // e.g. "Your engine is running. Cabin temperature is {vehicle_state_snapshot.hvac_status.cabin_temp_c}°C."
   sound: string; // e.g. "default"
   dataMetadata: { key: string; value: string }[]; // e.g. [{key: "runtime_limit_minutes", value: "15"}, {key: "engine_state", value: "{vehicle_state_snapshot.engine_state}"}]
+  translations?: RuleTranslation[];
 }
 
 export interface SimulationLog {
@@ -124,11 +132,18 @@ export interface NotificationScheduler {
   systemTaskKey?: string;
 }
 
+export interface KeyTranslation {
+  locale: string; // e.g. "es", "fr", "de", "zh", "ja"
+  name: string;
+  description?: string;
+}
+
 export interface DynamicCategory {
   key: string;
   name: string;
   enabled: boolean;
   description?: string;
+  translations?: KeyTranslation[];
 }
 
 export interface DynamicRuleKey {
@@ -137,5 +152,6 @@ export interface DynamicRuleKey {
   categoryKey: string;
   enabled: boolean;
   description?: string;
+  translations?: KeyTranslation[];
 }
 

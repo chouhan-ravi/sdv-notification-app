@@ -222,9 +222,24 @@ export function runRulesEvaluation(
 
     // If not blocked, generate notification
     if (!blockedReason) {
+      // Find if the car owner has a preferred language specified in settings
+      const ownerSetting = userSettings.find(s => s.userId === userId && s.vin === vin);
+      const preferredLanguage = ownerSetting?.language || 'en';
+
+      let titleTemplate = matchingRuleSource.notificationTitle;
+      let bodyTemplate = matchingRuleSource.notificationBody;
+
+      if (preferredLanguage && preferredLanguage !== 'en' && matchingRuleSource.translations) {
+        const trans = matchingRuleSource.translations.find(t => t.locale === preferredLanguage);
+        if (trans) {
+          if (trans.notificationTitle) titleTemplate = trans.notificationTitle;
+          if (trans.notificationBody) bodyTemplate = trans.notificationBody;
+        }
+      }
+
       // Evaluate template strings
-      const title = parseTemplate(matchingRuleSource.notificationTitle, payload);
-      const body = parseTemplate(matchingRuleSource.notificationBody, payload);
+      const title = parseTemplate(titleTemplate, payload);
+      const body = parseTemplate(bodyTemplate, payload);
 
       // Build data section
       const dynamicData: Record<string, string> = {

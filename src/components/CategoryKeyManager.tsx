@@ -24,8 +24,18 @@ import {
   XCircle,
   FolderTree,
   ChevronRight,
-  HelpCircle
+  HelpCircle,
+  Globe,
+  Languages
 } from 'lucide-react';
+
+const SUPPORTED_LOCALES = [
+  { code: 'es', name: 'Spanish (Español)', flag: '🇪🇸' },
+  { code: 'fr', name: 'French (Français)', flag: '🇫🇷' },
+  { code: 'de', name: 'German (Deutsch)', flag: '🇩🇪' },
+  { code: 'zh', name: 'Chinese (中文)', flag: '🇨🇳' },
+  { code: 'ja', name: 'Japanese (日本語)', flag: '🇯🇵' }
+];
 
 interface CategoryKeyManagerProps {
   categories: DynamicCategory[];
@@ -61,6 +71,14 @@ export default function CategoryKeyManager({
   const [catIsEditing, setCatIsEditing] = useState<string | null>(null); // holds category key
   const [catSearch, setCatSearch] = useState('');
   const [showCatForm, setShowCatForm] = useState(false);
+  const [catTranslations, setCatTranslations] = useState<Record<string, { name: string; description: string }>>({
+    es: { name: '', description: '' },
+    fr: { name: '', description: '' },
+    de: { name: '', description: '' },
+    zh: { name: '', description: '' },
+    ja: { name: '', description: '' },
+  });
+  const [activeCatFormLocale, setActiveCatFormLocale] = useState('es');
 
   // Rule Key Form States
   const [rkKey, setRkKey] = useState('');
@@ -71,6 +89,14 @@ export default function CategoryKeyManager({
   const [rkSearch, setRkSearch] = useState('');
   const [rkCategoryFilter, setRkCategoryFilter] = useState('ALL');
   const [showRkForm, setShowRkForm] = useState(false);
+  const [rkTranslations, setRkTranslations] = useState<Record<string, { name: string; description: string }>>({
+    es: { name: '', description: '' },
+    fr: { name: '', description: '' },
+    de: { name: '', description: '' },
+    zh: { name: '', description: '' },
+    ja: { name: '', description: '' },
+  });
+  const [activeRkFormLocale, setActiveRkFormLocale] = useState('es');
 
   // Relationship Quick-Move state
   const [quickMoveRk, setQuickMoveRk] = useState<string | null>(null);
@@ -107,6 +133,17 @@ export default function CategoryKeyManager({
       return;
     }
 
+    const translationsArray = Object.entries(catTranslations)
+      .filter(([_, t]) => (t as { name: string; description: string }).name.trim())
+      .map(([locale, t]) => {
+        const item = t as { name: string; description: string };
+        return {
+          locale,
+          name: item.name.trim(),
+          description: item.description.trim() || undefined
+        };
+      });
+
     if (catIsEditing) {
       // Editing Mode
       const original = categories.find(c => c.key === catIsEditing);
@@ -116,7 +153,8 @@ export default function CategoryKeyManager({
         key: catIsEditing,
         name: catName.trim(),
         enabled: original.enabled,
-        description: catDesc.trim()
+        description: catDesc.trim(),
+        translations: translationsArray.length > 0 ? translationsArray : undefined
       });
       triggerToast(`Category "${catName}" updated successfully.`);
       setCatIsEditing(null);
@@ -131,7 +169,8 @@ export default function CategoryKeyManager({
         key: formattedKey,
         name: catName.trim(),
         enabled: true,
-        description: catDesc.trim()
+        description: catDesc.trim(),
+        translations: translationsArray.length > 0 ? translationsArray : undefined
       });
       triggerToast(`Category "${catName}" created successfully.`);
     }
@@ -140,6 +179,14 @@ export default function CategoryKeyManager({
     setCatKey('');
     setCatName('');
     setCatDesc('');
+    setCatTranslations({
+      es: { name: '', description: '' },
+      fr: { name: '', description: '' },
+      de: { name: '', description: '' },
+      zh: { name: '', description: '' },
+      ja: { name: '', description: '' },
+    });
+    setActiveCatFormLocale('es');
     setShowCatForm(false);
   };
 
@@ -159,6 +206,17 @@ export default function CategoryKeyManager({
       return;
     }
 
+    const translationsArray = Object.entries(rkTranslations)
+      .filter(([_, t]) => (t as { name: string; description: string }).name.trim())
+      .map(([locale, t]) => {
+        const item = t as { name: string; description: string };
+        return {
+          locale,
+          name: item.name.trim(),
+          description: item.description.trim() || undefined
+        };
+      });
+
     if (rkIsEditing) {
       // Editing Mode
       const original = ruleKeys.find(r => r.key === rkIsEditing);
@@ -169,7 +227,8 @@ export default function CategoryKeyManager({
         name: rkName.trim(),
         categoryKey: rkCategoryKey,
         enabled: original.enabled,
-        description: rkDesc.trim()
+        description: rkDesc.trim(),
+        translations: translationsArray.length > 0 ? translationsArray : undefined
       });
       triggerToast(`Rule key "${rkName}" updated.`);
       setRkIsEditing(null);
@@ -185,7 +244,8 @@ export default function CategoryKeyManager({
         name: rkName.trim(),
         categoryKey: rkCategoryKey,
         enabled: true,
-        description: rkDesc.trim()
+        description: rkDesc.trim(),
+        translations: translationsArray.length > 0 ? translationsArray : undefined
       });
       triggerToast(`Rule Key "${rkName}" created.`);
     }
@@ -195,6 +255,14 @@ export default function CategoryKeyManager({
     setRkName('');
     setRkCategoryKey('');
     setRkDesc('');
+    setRkTranslations({
+      es: { name: '', description: '' },
+      fr: { name: '', description: '' },
+      de: { name: '', description: '' },
+      zh: { name: '', description: '' },
+      ja: { name: '', description: '' },
+    });
+    setActiveRkFormLocale('es');
     setShowRkForm(false);
   };
 
@@ -208,6 +276,28 @@ export default function CategoryKeyManager({
     setCatKey(cat.key);
     setCatName(cat.name);
     setCatDesc(cat.description || '');
+
+    // Populate translations
+    const initialTrans: Record<string, { name: string; description: string }> = {
+      es: { name: '', description: '' },
+      fr: { name: '', description: '' },
+      de: { name: '', description: '' },
+      zh: { name: '', description: '' },
+      ja: { name: '', description: '' },
+    };
+    if (cat.translations) {
+      cat.translations.forEach(t => {
+        if (initialTrans[t.locale]) {
+          initialTrans[t.locale] = {
+            name: t.name,
+            description: t.description || ''
+          };
+        }
+      });
+    }
+    setCatTranslations(initialTrans);
+    setActiveCatFormLocale('es');
+
     setShowCatForm(true);
   };
 
@@ -222,6 +312,28 @@ export default function CategoryKeyManager({
     setRkName(rk.name);
     setRkCategoryKey(rk.categoryKey);
     setRkDesc(rk.description || '');
+
+    // Populate translations
+    const initialTrans: Record<string, { name: string; description: string }> = {
+      es: { name: '', description: '' },
+      fr: { name: '', description: '' },
+      de: { name: '', description: '' },
+      zh: { name: '', description: '' },
+      ja: { name: '', description: '' },
+    };
+    if (rk.translations) {
+      rk.translations.forEach(t => {
+        if (initialTrans[t.locale]) {
+          initialTrans[t.locale] = {
+            name: t.name,
+            description: t.description || ''
+          };
+        }
+      });
+    }
+    setRkTranslations(initialTrans);
+    setActiveRkFormLocale('es');
+
     setShowRkForm(true);
   };
 
@@ -685,6 +797,89 @@ export default function CategoryKeyManager({
                   />
                 </div>
 
+                {/* Locale Translations for Category */}
+                <div className="bg-slate-900/40 border border-slate-850 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-850 pb-2">
+                    <span className="text-xs font-bold text-slate-300 font-mono flex items-center space-x-1.5">
+                      <Globe className="h-3.5 w-3.5 text-indigo-400" />
+                      <span>Language Translations (Optional)</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-sans">
+                      Add localized names & descriptions for car owners
+                    </span>
+                  </div>
+
+                  {/* Locale Selector Tabs inside form */}
+                  <div className="flex flex-wrap gap-1 bg-slate-950 p-1 rounded-lg border border-slate-850">
+                    {SUPPORTED_LOCALES.map(loc => {
+                      const isFilled = catTranslations[loc.code]?.name.trim().length > 0;
+                      return (
+                        <button
+                          key={loc.code}
+                          type="button"
+                          onClick={() => setActiveCatFormLocale(loc.code)}
+                          className={`px-2.5 py-1 rounded text-[11px] font-semibold transition flex items-center space-x-1.5 ${
+                            activeCatFormLocale === loc.code
+                              ? 'bg-indigo-600 text-white shadow-sm'
+                              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
+                          }`}
+                        >
+                          <span>{loc.flag}</span>
+                          <span>{loc.name.split(' ')[0]}</span>
+                          {isFilled && <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Form fields for active locale */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 font-mono mb-1.5 uppercase tracking-wider">
+                        NAME IN {SUPPORTED_LOCALES.find(l => l.code === activeCatFormLocale)?.name.toUpperCase()}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Localized name..."
+                        value={catTranslations[activeCatFormLocale]?.name || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCatTranslations(prev => ({
+                            ...prev,
+                            [activeCatFormLocale]: {
+                              ...prev[activeCatFormLocale],
+                              name: val
+                            }
+                          }));
+                        }}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-700 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 font-mono mb-1.5 uppercase tracking-wider">
+                        DESCRIPTION IN {SUPPORTED_LOCALES.find(l => l.code === activeCatFormLocale)?.name.toUpperCase()}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Localized description..."
+                        value={catTranslations[activeCatFormLocale]?.description || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCatTranslations(prev => ({
+                            ...prev,
+                            [activeCatFormLocale]: {
+                              ...prev[activeCatFormLocale],
+                              description: val
+                            }
+                          }));
+                        }}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-700 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex justify-end space-x-2 border-t border-slate-850 pt-3">
                   <button
                     type="button"
@@ -750,6 +945,23 @@ export default function CategoryKeyManager({
                               <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed line-clamp-2">
                                 {cat.description}
                               </p>
+                            )}
+                            {cat.translations && cat.translations.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1.5" id={`cat-trans-${cat.key}`}>
+                                {cat.translations.map(t => {
+                                  const localeObj = SUPPORTED_LOCALES.find(l => l.code === t.locale);
+                                  return (
+                                    <span 
+                                      key={t.locale}
+                                      className="inline-flex items-center space-x-1 px-1.5 py-0.5 bg-slate-900 border border-slate-800 rounded text-[9px] font-mono text-slate-400"
+                                      title={`Name: ${t.name}\nDesc: ${t.description || ''}`}
+                                    >
+                                      <span>{localeObj?.flag || t.locale}</span>
+                                      <span className="uppercase">{t.locale}</span>
+                                    </span>
+                                  );
+                                })}
+                              </div>
                             )}
                           </td>
 
@@ -947,6 +1159,89 @@ export default function CategoryKeyManager({
                   />
                 </div>
 
+                {/* Locale Translations for Rule Key */}
+                <div className="bg-slate-900/40 border border-slate-850 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-850 pb-2">
+                    <span className="text-xs font-bold text-slate-300 font-mono flex items-center space-x-1.5">
+                      <Globe className="h-3.5 w-3.5 text-indigo-400" />
+                      <span>Language Translations (Optional)</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-sans">
+                      Add localized names & descriptions for car owners
+                    </span>
+                  </div>
+
+                  {/* Locale Selector Tabs inside form */}
+                  <div className="flex flex-wrap gap-1 bg-slate-950 p-1 rounded-lg border border-slate-850">
+                    {SUPPORTED_LOCALES.map(loc => {
+                      const isFilled = rkTranslations[loc.code]?.name.trim().length > 0;
+                      return (
+                        <button
+                          key={loc.code}
+                          type="button"
+                          onClick={() => setActiveRkFormLocale(loc.code)}
+                          className={`px-2.5 py-1 rounded text-[11px] font-semibold transition flex items-center space-x-1.5 ${
+                            activeRkFormLocale === loc.code
+                              ? 'bg-indigo-600 text-white shadow-sm'
+                              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
+                          }`}
+                        >
+                          <span>{loc.flag}</span>
+                          <span>{loc.name.split(' ')[0]}</span>
+                          {isFilled && <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Form fields for active locale */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 font-mono mb-1.5 uppercase tracking-wider">
+                        NAME IN {SUPPORTED_LOCALES.find(l => l.code === activeRkFormLocale)?.name.toUpperCase()}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Localized name..."
+                        value={rkTranslations[activeRkFormLocale]?.name || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setRkTranslations(prev => ({
+                            ...prev,
+                            [activeRkFormLocale]: {
+                              ...prev[activeRkFormLocale],
+                              name: val
+                            }
+                          }));
+                        }}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-700 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 font-mono mb-1.5 uppercase tracking-wider">
+                        DESCRIPTION IN {SUPPORTED_LOCALES.find(l => l.code === activeRkFormLocale)?.name.toUpperCase()}
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Localized description..."
+                        value={rkTranslations[activeRkFormLocale]?.description || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setRkTranslations(prev => ({
+                            ...prev,
+                            [activeRkFormLocale]: {
+                              ...prev[activeRkFormLocale],
+                              description: val
+                            }
+                          }));
+                        }}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-700 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex justify-end space-x-2 border-t border-slate-850 pt-3">
                   <button
                     type="button"
@@ -1030,6 +1325,23 @@ export default function CategoryKeyManager({
                               <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed line-clamp-2">
                                 {rk.description}
                               </p>
+                            )}
+                            {rk.translations && rk.translations.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1.5" id={`rk-trans-${rk.key}`}>
+                                {rk.translations.map(t => {
+                                  const localeObj = SUPPORTED_LOCALES.find(l => l.code === t.locale);
+                                  return (
+                                    <span 
+                                      key={t.locale}
+                                      className="inline-flex items-center space-x-1 px-1.5 py-0.5 bg-slate-900 border border-slate-800 rounded text-[9px] font-mono text-slate-400"
+                                      title={`Name: ${t.name}\nDesc: ${t.description || ''}`}
+                                    >
+                                      <span>{localeObj?.flag || t.locale}</span>
+                                      <span className="uppercase">{t.locale}</span>
+                                    </span>
+                                  );
+                                })}
+                              </div>
                             )}
                           </td>
 
