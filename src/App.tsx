@@ -19,6 +19,7 @@ import AfterSalesMaintenance from './components/AfterSalesMaintenance';
 import SchedulerConfig from './components/SchedulerConfig';
 import CategoryKeyManager from './components/CategoryKeyManager';
 import TranslationManager from './components/TranslationManager';
+import { apiService } from './services/api';
 import { 
   Shield, 
   Settings, 
@@ -95,19 +96,30 @@ export default function App() {
     }
   }, [theme]);
 
-  // Initialize and load from local storage
-  useEffect(() => {
-    // 1. Rules
-    const savedRules = localStorage.getItem('sdv_notification_rules');
-    if (savedRules) {
-      try {
-        setRules(JSON.parse(savedRules));
-      } catch (err) {
+  const fetchRulesFromApi = async () => {
+    try {
+      const data = await apiService.get<Rule[]>('/rules');
+      setRules(data);
+      localStorage.setItem('sdv_notification_rules', JSON.stringify(data));
+    } catch (err) {
+      console.warn('REST backend unreachable, falling back to LocalStorage:', err);
+      const savedRules = localStorage.getItem('sdv_notification_rules');
+      if (savedRules) {
+        try {
+          setRules(JSON.parse(savedRules));
+        } catch (e) {
+          setRules(DEFAULT_RULES);
+        }
+      } else {
         setRules(DEFAULT_RULES);
       }
-    } else {
-      setRules(DEFAULT_RULES);
     }
+  };
+
+  // Initialize and load from local storage
+  useEffect(() => {
+    // 1. Rules (Loads from REST API with dynamic LocalStorage fallback)
+    fetchRulesFromApi();
 
     // 2. Simulation Logs
     const savedLogs = localStorage.getItem('sdv_simulation_logs');
@@ -240,23 +252,42 @@ export default function App() {
   };
 
   // Rule Handlers
-  const handleToggleRule = (id: string) => {
-    const updated = rules.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r);
-    saveRulesToLocalStorage(updated);
+  const handleToggleRule = async (id: string) => {
     const rule = rules.find(r => r.id === id);
-    triggerToast(`Rule "${rule?.name}" ${!rule?.enabled ? 'enabled' : 'disabled'} successfully`);
-  };
-
-  const handleDeleteRule = (id: string) => {
-    const rule = rules.find(r => r.id === id);
-    if (window.confirm(`Are you sure you want to delete the rule "${rule?.name}"?`)) {
-      const updated = rules.filter(r => r.id !== id);
+    if (!rule) return;
+    
+    const updatedRule = { ...rule, enabled: !rule.enabled };
+    try {
+      await apiService.put<Rule>(`/rules/${id}`, updatedRule);
+      triggerToast(`Rule "${rule.name}" ${!rule.enabled ? 'enabled' : 'disabled'} successfully via PUT API`);
+      await fetchRulesFromApi();
+    } catch (err) {
+      console.error('API toggle failed, falling back to local storage', err);
+      const updated = rules.map(r => r.id === id ? updatedRule : r);
       saveRulesToLocalStorage(updated);
-      triggerToast('Rule deleted successfully');
+      triggerToast(`Rule "${rule.name}" ${!rule.enabled ? 'enabled' : 'disabled'} locally (fallback)`);
     }
   };
 
-  const handleDuplicateRule = (rule: Rule) => {
+  const handleDeleteRule = async (id: string) => {
+    const rule = rules.find(r => r.id === id);
+    if (!rule) return;
+    
+    if (window.confirm(`Are you sure you want to delete the rule "${rule.name}"?`)) {
+      try {
+        await apiService.delete(`/rules/${id}`);
+        triggerToast('Rule deleted successfully via DELETE API');
+        await fetchRulesFromApi();
+      } catch (err) {
+        console.error('API delete failed, falling back to local storage', err);
+        const updated = rules.filter(r => r.id !== id);
+        saveRulesToLocalStorage(updated);
+        triggerToast('Rule deleted locally (fallback)');
+      }
+    }
+  };
+
+  const handleDuplicateRule = async (rule: Rule) => {
     const copy: Rule = {
       ...rule,
       id: 'rule_' + Math.random().toString(36).substring(2, 9),
@@ -264,9 +295,17 @@ export default function App() {
       ruleKey: `${rule.ruleKey}_COPY`,
       enabled: true
     };
-    const updated = [...rules, copy];
-    saveRulesToLocalStorage(updated);
-    triggerToast(`Duplicated into "${copy.name}"`);
+    
+    try {
+      await apiService.post<Rule>('/rules', copy);
+      triggerToast(`Duplicated successfully via POST API`);
+      await fetchRulesFromApi();
+    } catch (err) {
+      console.error('API duplication failed, falling back to local storage', err);
+      const updated = [...rules, copy];
+      saveRulesToLocalStorage(updated);
+      triggerToast(`Duplicated locally into "${copy.name}" (fallback)`);
+    }
   };
 
   const handleEditRuleTrigger = (rule: Rule) => {
@@ -279,16 +318,30 @@ export default function App() {
     setIsFormOpen(true);
   };
 
-  const handleSaveRule = (savedRule: Rule) => {
-    let updated: Rule[];
-    if (ruleToEdit) {
-      updated = rules.map(r => r.id === savedRule.id ? savedRule : r);
-      triggerToast('Rule settings updated successfully');
-    } else {
-      updated = [...rules, savedRule];
-      triggerToast('New rule created successfully');
+  const handleSaveRule = async (savedRule: Rule) => {
+    try {
+      if (ruleToEdit) {
+        // Edit Mode: PUT Call
+        await apiService.put<Rule>(`/rules/${savedRule.id}`, savedRule);
+        triggerToast('Rule settings updated successfully via PUT API');
+      } else {
+        // Create Mode: POST Call
+        await apiService.post<Rule>('/rules', savedRule);
+        triggerToast('New rule created successfully via POST API');
+      }
+      await fetchRulesFromApi();
+    } catch (err: any) {
+      console.error('REST API saving failed, resorting to local storage state fallback', err);
+      let updated: Rule[];
+      if (ruleToEdit) {
+        updated = rules.map(r => r.id === savedRule.id ? savedRule : r);
+        triggerToast('Rule settings updated locally (REST fallback)');
+      } else {
+        updated = [...rules, savedRule];
+        triggerToast('New rule created locally (REST fallback)');
+      }
+      saveRulesToLocalStorage(updated);
     }
-    saveRulesToLocalStorage(updated);
     setIsFormOpen(false);
     setRuleToEdit(null);
   };
@@ -427,16 +480,23 @@ export default function App() {
   };
 
   // Factory settings reset
-  const handleResetToDefaults = () => {
+  const handleResetToDefaults = async () => {
     if (window.confirm('Reset all rules, corporate filters, and subscriber settings back to platform defaults? This will erase custom records.')) {
-      saveRulesToLocalStorage(DEFAULT_RULES);
+      try {
+        await apiService.post<Rule[]>('/rules/reset', {});
+        await fetchRulesFromApi();
+        triggerToast('SDV platforms factory values restored via REST API');
+      } catch (err) {
+        console.error('API reset failed, falling back to local storage reset', err);
+        saveRulesToLocalStorage(DEFAULT_RULES);
+        triggerToast('SDV platforms factory values restored locally (fallback)');
+      }
       saveBusinessFiltersToLocalStorage(DEFAULT_BUSINESS_FILTERS);
       saveUserSettingsToLocalStorage(DEFAULT_CAR_OWNER_SETTINGS);
       saveAfterSalesToLocalStorage(DEFAULT_AFTER_SALES_RECORDS);
       saveSchedulersToLocalStorage(DEFAULT_SCHEDULERS);
       saveCategoriesToLocalStorage(DEFAULT_DYNAMIC_CATEGORIES);
       saveRuleKeysToLocalStorage(DEFAULT_DYNAMIC_RULE_KEYS);
-      triggerToast('SDV platforms factory values restored');
     }
   };
 
@@ -903,6 +963,8 @@ export default function App() {
                   />
                 </div>
               )}
+
+
 
             </div>
 

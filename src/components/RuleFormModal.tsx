@@ -502,22 +502,28 @@ export default function RuleFormModal({
         </form>
 
         {/* Modal Footer */}
-        <div className="p-4 border-t border-slate-850 flex justify-end space-x-2 bg-slate-950">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-lg transition font-medium"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className="px-4 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition font-semibold flex items-center space-x-1.5 shadow-lg shadow-indigo-600/10"
-          >
-            <Save className="h-4 w-4" />
-            <span>{ruleToEdit ? 'Save Changes' : 'Create Rule'}</span>
-          </button>
+        <div className="p-4 border-t border-slate-850 flex items-center justify-between bg-slate-950">
+          <div className="flex items-center space-x-1.5 text-slate-500 font-mono text-[10px]">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
+            <span>REST GATEWAY ACTIVE // POST-ON-SAVE DIRECT PIPELINE</span>
+          </div>
+          <div className="flex space-x-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-lg transition font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="px-4 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition font-semibold flex items-center space-x-1.5 shadow-lg shadow-indigo-600/10"
+            >
+              <Save className="h-4 w-4" />
+              <span>{ruleToEdit ? 'Save Changes' : 'Create Rule'}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
