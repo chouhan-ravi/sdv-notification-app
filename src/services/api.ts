@@ -41,8 +41,8 @@ class ApiService {
       // Load current customized upgrade token from localStorage or use secure default
       const upgradeToken = localStorage.getItem('sdv_api_upgrade_token') || 'SDV-GATEWAY-v2.5-SECURE';
       if (upgradeToken) {
-        headers.set('X-Header-Upgrade', upgradeToken);
-        headers.set('Authorization', `Bearer ${upgradeToken}`);
+        //headers.set('X-Header-Upgrade', upgradeToken);
+        //headers.set('Authorization', `Bearer ${upgradeToken}`);
       }
 
       // Automatically set standard content-type for payload delivery

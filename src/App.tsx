@@ -348,7 +348,7 @@ export default function App() {
 
   const handleReCache = async () => {
     try {
-      await apiService.get('/rules/re-cache');
+      await apiService.post<any>('/rules/re-cache', {});
       triggerToast('All platform ingestion rules re-cached successfully');
       await fetchRulesFromApi();
     } catch (err: any) {
