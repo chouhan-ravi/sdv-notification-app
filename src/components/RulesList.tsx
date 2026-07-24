@@ -374,14 +374,14 @@ export default function RulesList({
                         }`}>
                           PRIORITY: {rule.priority.toUpperCase()}
                         </span>
-                        {rule.MessageType && (
+                        {rule.messageType && (
                           <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-indigo-950/40 text-indigo-400 border border-indigo-900/40">
-                            MSG: {rule.MessageType.toUpperCase()}
+                            MSG: {rule.messageType.toUpperCase()}
                           </span>
                         )}
-                        {rule.NotificationType && (
+                        {rule.notificationType && (
                           <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-purple-950/40 text-purple-400 border border-purple-900/40">
-                            NOTIF: {rule.NotificationType.toUpperCase()}
+                            NOTIF: {rule.notificationType.toUpperCase()}
                           </span>
                         )}
                       </div>
@@ -516,14 +516,14 @@ export default function RulesList({
                       </div>
 
                       {/* Message Type & Notification Type Details */}
-                      {(rule.MessageType || rule.NotificationType) && (
+                      {(rule.messageType || rule.notificationType) && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <h4 className="text-xs font-bold font-mono text-slate-300 mb-1.5">
                               MESSAGE TYPE
                             </h4>
                             <div className="bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs font-mono text-indigo-400">
-                              {rule.MessageType || <span className="text-slate-600">Not specified</span>}
+                              {rule.messageType || <span className="text-slate-600">Not specified</span>}
                             </div>
                           </div>
                           <div>
@@ -531,7 +531,7 @@ export default function RulesList({
                               NOTIFICATION TYPE
                             </h4>
                             <div className="bg-slate-950 border border-slate-850 rounded-lg p-2.5 text-xs font-mono text-purple-400">
-                              {rule.NotificationType || <span className="text-slate-600">Not specified</span>}
+                              {rule.notificationType || <span className="text-slate-600">Not specified</span>}
                             </div>
                           </div>
                         </div>
