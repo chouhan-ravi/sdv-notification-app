@@ -258,7 +258,7 @@ export default function App() {
     
     const updatedRule = { ...rule, enabled: !rule.enabled };
     try {
-      await apiService.put<Rule>(`/rules/${id}`, updatedRule);
+      await apiService.put<Rule>(`/rules/${id}/enable`, {enabled:updatedRule.enabled});
       triggerToast(`Rule "${rule.name}" ${!rule.enabled ? 'enabled' : 'disabled'} successfully via PUT API`);
       await fetchRulesFromApi();
     } catch (err) {
