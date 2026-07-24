@@ -53,8 +53,8 @@ export default function RuleFormModal({
       setNotificationBody(ruleToEdit.notificationBody);
       setSound(ruleToEdit.sound || 'default');
       setDataMetadata(ruleToEdit.dataMetadata || []);
-      setMessageType(ruleToEdit.messageType || '');
-      setNotificationType(ruleToEdit.notificationType || '');
+      setMessageType(ruleToEdit.MessageType || '');
+      setNotificationType(ruleToEdit.NotificationType || '');
       setErrors([]);
     } else {
       // Set default values for fresh new rule
@@ -159,8 +159,8 @@ export default function RuleFormModal({
       notificationBody: notificationBody.trim(),
       sound: sound.trim() || 'default',
       dataMetadata: dataMetadata.filter(m => m.key.trim() !== ''),
-      messageType: messageType.trim(),
-      notificationType: notificationType.trim()
+      MessageType: messageType.trim(),
+      NotificationType: notificationType.trim()
     };
 
     onSave(savedRule);

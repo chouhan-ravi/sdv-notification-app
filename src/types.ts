@@ -68,8 +68,8 @@ export interface Rule {
   sound: string; // e.g. "default"
   dataMetadata: { key: string; value: string }[]; // e.g. [{key: "runtime_limit_minutes", value: "15"}, {key: "engine_state", value: "{vehicle_state_snapshot.engine_state}"}]
   translations?: RuleTranslation[];
-  messageType?: string;
-  notificationType?: string;
+  MessageType?: string;
+  NotificationType?: string;
 }
 
 export interface SimulationLog {

@@ -89,7 +89,7 @@ export default function App() {
     const root = document.documentElement;
     if (theme === 'fuchsia-light') {
       root.classList.add('fuchsia-light');
-      root.style.backgroundColor = '#fdf4ff';
+      root.style.backgroundColor = '#F5F6F8';
     } else {
       root.classList.remove('fuchsia-light');
       root.style.backgroundColor = '#020617';
@@ -348,7 +348,7 @@ export default function App() {
 
   const handleReCache = async () => {
     try {
-      await apiService.post<any>('/rules/re-cache', {});
+      await apiService.get('/rules/re-cache');
       triggerToast('All platform ingestion rules re-cached successfully');
       await fetchRulesFromApi();
     } catch (err: any) {
@@ -556,8 +556,34 @@ export default function App() {
     setTimeout(() => setActiveRuleKeyFilter(null), 50);
   };
 
+  const getNavBtnClass = (screen: string) => {
+    const isActive = activeScreen === screen;
+    const padding = sidebarCollapsed ? 'justify-center p-2.5' : 'space-x-2.5 px-3 py-2';
+    const base = `w-full flex items-center ${padding} rounded-xl text-xs font-bold transition duration-150 uppercase tracking-wide border`;
+    if (isActive) {
+      if (theme === 'fuchsia-light') {
+        return `${base} bg-[#16171F] border-[#FC5A34]/30 text-[#FC5A34] font-extrabold`;
+      }
+      return `${base} bg-indigo-600/15 border-indigo-500/30 text-indigo-400 font-extrabold`;
+    } else {
+      if (theme === 'fuchsia-light') {
+        return `${base} text-slate-400 hover:text-slate-100 hover:bg-[#151720]/80 border-transparent`;
+      }
+      return `${base} text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border-transparent`;
+    }
+  };
+
+  const getActionBtnClass = () => {
+    const padding = sidebarCollapsed ? 'justify-center p-2' : 'space-x-2 px-3 py-1.5';
+    const base = `w-full flex items-center ${padding} text-left rounded-lg text-[11px] font-bold transition`;
+    if (theme === 'fuchsia-light') {
+      return `${base} text-slate-400 hover:text-slate-100 hover:bg-[#151720]/80`;
+    }
+    return `${base} text-slate-400 hover:text-slate-200 hover:bg-slate-900`;
+  };
+
   return (
-    <div id="sdv-app-root" className={`min-h-screen flex flex-col lg:flex-row font-sans selection:bg-indigo-600/30 selection:text-white transition-colors duration-200 ${theme === 'fuchsia-light' ? 'fuchsia-light bg-fuchsia-50 text-slate-900' : 'bg-slate-950 text-slate-100'}`}>
+    <div id="sdv-app-root" className={`min-h-screen flex flex-col lg:flex-row font-sans selection:bg-indigo-600/30 selection:text-white transition-colors duration-200 ${theme === 'fuchsia-light' ? 'fuchsia-light bg-slate-950 text-slate-900' : 'bg-slate-950 text-slate-100'}`}>
       
       {/* GLOBAL TOAST NOTIFICATION */}
       {toastMsg && (
@@ -568,7 +594,7 @@ export default function App() {
       )}
 
       {/* MOBILE TOP NAVIGATION BAR */}
-      <div className="lg:hidden bg-slate-950 border-b border-slate-800 p-4 sticky top-0 z-40 flex items-center justify-between">
+      <div className={`lg:hidden border-b p-4 sticky top-0 z-40 flex items-center justify-between ${theme === 'fuchsia-light' ? 'bg-[#0B0C10] border-[#151720]' : 'bg-slate-950 border-slate-800'}`}>
         <div className="flex items-center space-x-2.5">
           <div className="p-1.5 rounded-lg bg-gradient-to-tr from-indigo-900 to-indigo-600 text-white shadow">
             <Shield className="h-4 w-4" />
@@ -589,20 +615,21 @@ export default function App() {
 
       {/* LEFT SIDEBAR MENU BAR (Responsive Desktop-First Sidebar) */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 bg-slate-950 border-r border-slate-800 flex flex-col z-40 p-4 shrink-0 transition-all duration-300
+        fixed lg:static inset-y-0 left-0 flex flex-col z-40 p-4 shrink-0 transition-all duration-300
+        ${theme === 'fuchsia-light' ? 'bg-[#0B0C10] border-r border-[#151720]' : 'bg-slate-950 border-r border-slate-800'}
         ${sidebarCollapsed ? 'lg:w-20' : 'lg:w-64'}
         ${mobileSidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full lg:translate-x-0'}
       `}>
         
         {/* LOGO & BRAND */}
-        <div className={`flex ${sidebarCollapsed ? 'flex-col items-center space-y-3' : 'items-center space-x-3'} mb-5 pb-4 border-b border-slate-800 transition-all duration-300`}>
+        <div className={`flex ${sidebarCollapsed ? 'flex-col items-center space-y-3' : 'items-center space-x-3'} mb-5 pb-4 border-b ${theme === 'fuchsia-light' ? 'border-[#151720]' : 'border-slate-800'} transition-all duration-300`}>
           <div className="p-2 rounded-xl bg-gradient-to-tr from-indigo-950 to-indigo-600 text-white shadow-lg shadow-indigo-600/10 flex items-center justify-center shrink-0">
             <Shield className="h-5 w-5" />
           </div>
           {!sidebarCollapsed && (
             <div className="transition-opacity duration-300">
               <div className="flex items-center space-x-1.5">
-                <h1 className="text-xs font-bold tracking-tight text-slate-200 uppercase font-display">SDV Vehicle</h1>
+                <h1 className={`text-xs font-bold tracking-tight uppercase font-display ${theme === 'fuchsia-light' ? 'text-slate-100' : 'text-slate-200'}`}>SDV Vehicle</h1>
               </div>
               <p className="text-[10px] text-slate-500 font-sans font-medium">
                 NOTIFICATION GATEWAY
@@ -617,7 +644,11 @@ export default function App() {
             onClick={handleToggleSidebar}
             type="button"
             title={sidebarCollapsed ? "Switch to Full View" : "Switch to Icon View"}
-            className="p-1.5 rounded-lg border border-slate-800 bg-slate-950 text-slate-400 hover:text-indigo-400 hover:border-slate-800 transition flex items-center space-x-1 text-[10px] font-mono font-bold"
+            className={`p-1.5 rounded-lg border transition flex items-center space-x-1 text-[10px] font-mono font-bold ${
+              theme === 'fuchsia-light'
+                ? 'border-[#1C1E26] bg-[#07080B] text-slate-400 hover:text-indigo-400 hover:border-[#1C1E26]'
+                : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-indigo-400 hover:border-slate-800'
+            }`}
           >
             {sidebarCollapsed ? (
               <ChevronRight className="h-4 w-4 text-indigo-400" />
@@ -638,17 +669,13 @@ export default function App() {
                 Platform Navigation
               </span>
             ) : (
-              <div className="h-px bg-slate-900 my-3" />
+              <div className={`h-px my-3 ${theme === 'fuchsia-light' ? 'bg-[#151720]' : 'bg-slate-900'}`} />
             )}
             <nav className="space-y-1">
               <button
                 onClick={() => { setActiveScreen('simulator'); setMobileSidebarOpen(false); }}
                 title="Simulation Playground"
-                className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center p-2.5' : 'space-x-2.5 px-3 py-2'} rounded-xl text-xs font-bold transition duration-150 uppercase tracking-wide ${
-                  activeScreen === 'simulator'
-                    ? 'bg-indigo-600/15 border border-indigo-500/30 text-indigo-400 font-extrabold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent'
-                }`}
+                className={getNavBtnClass('simulator')}
               >
                 <Terminal className="h-4.5 w-4.5 shrink-0" />
                 {!sidebarCollapsed && <span className="truncate">Simulation Playground</span>}
@@ -657,11 +684,7 @@ export default function App() {
               <button
                 onClick={() => { setActiveScreen('rules'); setMobileSidebarOpen(false); }}
                 title="Rules Matrix Registry"
-                className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center p-2.5' : 'space-x-2.5 px-3 py-2'} rounded-xl text-xs font-bold transition duration-150 uppercase tracking-wide ${
-                  activeScreen === 'rules'
-                    ? 'bg-indigo-600/15 border border-indigo-500/30 text-indigo-400 font-extrabold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent'
-                }`}
+                className={getNavBtnClass('rules')}
               >
                 <Cpu className="h-4.5 w-4.5 shrink-0" />
                 {!sidebarCollapsed && <span className="truncate">Rules Matrix Registry</span>}
@@ -670,11 +693,7 @@ export default function App() {
               <button
                 onClick={() => { setActiveScreen('category_keys'); setMobileSidebarOpen(false); }}
                 title="Category & Rule Keys"
-                className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center p-2.5' : 'space-x-2.5 px-3 py-2'} rounded-xl text-xs font-bold transition duration-150 uppercase tracking-wide ${
-                  activeScreen === 'category_keys'
-                    ? 'bg-indigo-600/15 border border-indigo-500/30 text-indigo-400 font-extrabold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent'
-                }`}
+                className={getNavBtnClass('category_keys')}
               >
                 <Network className="h-4.5 w-4.5 shrink-0" />
                 {!sidebarCollapsed && <span className="truncate">Category & Rule Keys</span>}
@@ -683,24 +702,16 @@ export default function App() {
               <button
                 onClick={() => { setActiveScreen('settings'); setMobileSidebarOpen(false); }}
                 title="Gateway Controls"
-                className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center p-2.5' : 'space-x-2.5 px-3 py-2'} rounded-xl text-xs font-bold transition duration-150 uppercase tracking-wide ${
-                  activeScreen === 'settings'
-                    ? 'bg-indigo-600/15 border border-indigo-500/30 text-indigo-400 font-extrabold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent'
-                }`}
+                className={getNavBtnClass('settings')}
               >
                 <Sliders className="h-4.5 w-4.5 shrink-0" />
-                {!sidebarCollapsed && <span className="truncate">Notification Controls</span>}
+                {!sidebarCollapsed && <span className="truncate">Gateway Controls</span>}
               </button>
 
               <button
                 onClick={() => { setActiveScreen('after_sales'); setMobileSidebarOpen(false); }}
                 title="After-Sales & Maintenance"
-                className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center p-2.5' : 'space-x-2.5 px-3 py-2'} rounded-xl text-xs font-bold transition duration-150 uppercase tracking-wide ${
-                  activeScreen === 'after_sales'
-                    ? 'bg-indigo-600/15 border border-indigo-500/30 text-indigo-400 font-extrabold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent'
-                }`}
+                className={getNavBtnClass('after_sales')}
               >
                 <Wrench className="h-4.5 w-4.5 shrink-0" />
                 {!sidebarCollapsed && <span className="truncate">After-Sales & Shop</span>}
@@ -709,11 +720,7 @@ export default function App() {
               <button
                 onClick={() => { setActiveScreen('scheduler'); setMobileSidebarOpen(false); }}
                 title="Notification Schedulers"
-                className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center p-2.5' : 'space-x-2.5 px-3 py-2'} rounded-xl text-xs font-bold transition duration-150 uppercase tracking-wide ${
-                  activeScreen === 'scheduler'
-                    ? 'bg-indigo-600/15 border border-indigo-500/30 text-indigo-400 font-extrabold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent'
-                }`}
+                className={getNavBtnClass('scheduler')}
               >
                 <Clock className="h-4.5 w-4.5 shrink-0" />
                 {!sidebarCollapsed && <span className="truncate">Proactive Schedulers</span>}
@@ -722,11 +729,7 @@ export default function App() {
               <button
                 onClick={() => { setActiveScreen('i18n'); setMobileSidebarOpen(false); }}
                 title="Locale & i18n Studio"
-                className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center p-2.5' : 'space-x-2.5 px-3 py-2'} rounded-xl text-xs font-bold transition duration-150 uppercase tracking-wide ${
-                  activeScreen === 'i18n'
-                    ? 'bg-indigo-600/15 border border-indigo-500/30 text-indigo-400 font-extrabold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent'
-                }`}
+                className={getNavBtnClass('i18n')}
               >
                 <Globe className="h-4.5 w-4.5 shrink-0" />
                 {!sidebarCollapsed && <span className="truncate">Locale & i18n Studio</span>}
@@ -735,19 +738,19 @@ export default function App() {
           </div>
 
           {/* QUICK CONTROLS AREA */}
-          <div className="pt-4 border-t border-slate-800">
+          <div className={`pt-4 border-t ${theme === 'fuchsia-light' ? 'border-[#151720]' : 'border-slate-800'}`}>
             {!sidebarCollapsed ? (
               <span className="block text-[9px] font-bold text-slate-500 font-mono tracking-wider mb-2 uppercase px-2 transition-opacity duration-300">
                 Registry Actions
               </span>
             ) : (
-              <div className="h-px bg-slate-800 my-3" />
+              <div className={`h-px my-3 ${theme === 'fuchsia-light' ? 'bg-[#151720]' : 'bg-slate-800'}`} />
             )}
             <div className="space-y-1.5">
               <button
                 onClick={handleResetToDefaults}
                 title="Reset Defaults"
-                className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center p-2' : 'space-x-2 px-3 py-1.5'} text-left rounded-lg text-[11px] font-bold text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition`}
+                className={getActionBtnClass()}
               >
                 <RotateCcw className="h-4 w-4 text-slate-500 shrink-0" />
                 {!sidebarCollapsed && <span>Reset Defaults</span>}
@@ -756,7 +759,7 @@ export default function App() {
               <button
                 onClick={handleExportConfig}
                 title="Export Rules"
-                className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center p-2' : 'space-x-2 px-3 py-1.5'} text-left rounded-lg text-[11px] font-bold text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition`}
+                className={getActionBtnClass()}
               >
                 <FileDown className="h-4 w-4 text-slate-500 shrink-0" />
                 {!sidebarCollapsed && <span>Export Rules</span>}
@@ -764,7 +767,7 @@ export default function App() {
 
               <label 
                 title="Import Rules"
-                className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center p-2 font-bold' : 'space-x-2 px-3 py-1.5'} text-left rounded-lg text-[11px] font-bold text-slate-400 hover:text-slate-200 hover:bg-slate-900 transition cursor-pointer`}
+                className={`${getActionBtnClass()} cursor-pointer`}
               >
                 <FileUp className="h-4 w-4 text-slate-500 shrink-0" />
                 {!sidebarCollapsed && <span>Import Rules</span>}
@@ -780,7 +783,7 @@ export default function App() {
                 <button
                   onClick={handleCreateRuleTrigger}
                   title="Create New Rule"
-                  className={`w-full flex items-center justify-center ${sidebarCollapsed ? 'p-2 bg-indigo-600/30' : 'space-x-1.5 px-3 py-2 bg-indigo-600'} hover:bg-indigo-500 text-white rounded-lg text-[11px] font-bold transition shadow`}
+                  className={`w-full flex items-center justify-center ${sidebarCollapsed ? 'p-2' : 'space-x-1.5 px-3 py-2'} bg-[#FC5A34] hover:bg-[#E04B28] text-white rounded-lg text-[11px] font-bold transition shadow`}
                 >
                   <Plus className="h-4 w-4 shrink-0" />
                   {!sidebarCollapsed && <span>CREATE NEW RULE</span>}
@@ -791,7 +794,7 @@ export default function App() {
         </div>
 
         {/* METADATA SUMMARY */}
-        <div className="pt-4 border-t border-slate-800 text-[10px] font-mono text-slate-600 space-y-1">
+        <div className={`pt-4 border-t text-[10px] font-mono text-slate-600 space-y-1 ${theme === 'fuchsia-light' ? 'border-[#151720]' : 'border-slate-800'}`}>
           {sidebarCollapsed ? (
             <div className="text-center text-[9px] text-slate-500 font-mono">v2.4</div>
           ) : (
@@ -817,10 +820,10 @@ export default function App() {
           {/* TOP MENU BAR WITH PROFILE AND THEME TOGGLE */}
           <div className="flex items-center justify-between border-b border-slate-800 pb-4">
             <div className="flex flex-col">
-              <h2 className="text-sm font-bold font-display uppercase tracking-widest text-slate-400">
+              <h2 className="text-sm font-bold font-display uppercase tracking-widest text-slate-100">
                 SDV Vehicle Notification Gateway
               </h2>
-              <p className="text-[10px] text-slate-500 font-mono">
+              <p className="text-[10px] text-slate-400 font-mono">
                 REGISTRY CONSOLE // {activeScreen.toUpperCase()}
               </p>
             </div>
@@ -829,23 +832,31 @@ export default function App() {
               {/* THEME TOGGLE */}
               <button
                 onClick={handleToggleTheme}
-                title={theme === 'dark' ? "Switch to Fuchsia Light Theme" : "Switch to Dark Current Theme"}
-                className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-indigo-500 text-slate-400 hover:text-indigo-400 transition flex items-center justify-center shadow-lg relative group"
+                title={theme === 'dark' ? "Switch to Coral Light Theme" : "Switch to Dark Theme"}
+                className={`p-2.5 rounded-xl border transition flex items-center justify-center shadow-lg relative group ${
+                  theme === 'fuchsia-light' 
+                    ? 'bg-white border-slate-200 hover:border-[#FC5A34] text-slate-500 hover:text-[#FC5A34]' 
+                    : 'bg-slate-900 border-slate-800 hover:border-indigo-500 text-slate-400 hover:text-indigo-400'
+                }`}
               >
                 {theme === 'dark' ? (
                   <Sun className="h-4.5 w-4.5 text-amber-500 animate-spin-slow" />
                 ) : (
-                  <Moon className="h-4.5 w-4.5 text-fuchsia-400 animate-pulse" />
+                  <Moon className="h-4.5 w-4.5 text-slate-500 animate-pulse" />
                 )}
               </button>
 
               {/* PROFILE SECTION */}
-              <div className="flex items-center space-x-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 shadow-sm">
-                <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-indigo-600 to-fuchsia-500 flex items-center justify-center text-white text-[10px] font-bold shadow-inner">
+              <div className={`flex items-center space-x-2 border rounded-xl px-3 py-1.5 shadow-sm ${
+                theme === 'fuchsia-light' 
+                  ? 'bg-white border-slate-200 text-slate-800' 
+                  : 'bg-slate-900 border-slate-800 text-slate-100'
+              }`}>
+                <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-[#FC5A34] to-amber-500 flex items-center justify-center text-white text-[10px] font-bold shadow-inner">
                   RC
                 </div>
                 <div className="hidden sm:flex flex-col text-left">
-                  <span className="text-[10px] font-bold text-slate-200 leading-none">Ravi Chouhan</span>
+                  <span className={`text-[10px] font-bold leading-none ${theme === 'fuchsia-light' ? 'text-slate-800' : 'text-slate-200'}`}>Ravi Chouhan</span>
                   <span className="text-[8px] font-mono text-slate-500">usr_ravi_55</span>
                 </div>
               </div>
