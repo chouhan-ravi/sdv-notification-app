@@ -690,7 +690,7 @@ export default function App() {
                 }`}
               >
                 <Sliders className="h-4.5 w-4.5 shrink-0" />
-                {!sidebarCollapsed && <span className="truncate">Gateway Controls</span>}
+                {!sidebarCollapsed && <span className="truncate">Notification Controls</span>}
               </button>
 
               <button
