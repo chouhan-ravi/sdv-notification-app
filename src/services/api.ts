@@ -27,7 +27,7 @@ export interface ResponseInterceptor {
 type LogListener = (logs: HttpLog[]) => void;
 
 class ApiService {
-  private baseUrl: string = '/api';
+  private baseUrl: string = 'http://localhost:8081/api/v1';
   private requestInterceptors: RequestInterceptor[] = [];
   private responseInterceptors: ResponseInterceptor[] = [];
   private httpLogs: HttpLog[] = [];

@@ -35,6 +35,8 @@ export default function RuleFormModal({
   const [notificationBody, setNotificationBody] = useState('');
   const [sound, setSound] = useState('default');
   const [dataMetadata, setDataMetadata] = useState<{ key: string; value: string }[]>([]);
+  const [messageType, setMessageType] = useState('');
+  const [notificationType, setNotificationType] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
 
   // Load existing values when ruleToEdit changes
@@ -51,6 +53,8 @@ export default function RuleFormModal({
       setNotificationBody(ruleToEdit.notificationBody);
       setSound(ruleToEdit.sound || 'default');
       setDataMetadata(ruleToEdit.dataMetadata || []);
+      setMessageType(ruleToEdit.MessageType || '');
+      setNotificationType(ruleToEdit.NotificationType || '');
       setErrors([]);
     } else {
       // Set default values for fresh new rule
@@ -76,6 +80,8 @@ export default function RuleFormModal({
       setDataMetadata([
         { key: 'engine_state', value: '{vehicle_state_snapshot.engine_state}' }
       ]);
+      setMessageType('');
+      setNotificationType('');
       setErrors([]);
     }
   }, [ruleToEdit, isOpen]);
@@ -152,7 +158,9 @@ export default function RuleFormModal({
       notificationTitle: notificationTitle.trim(),
       notificationBody: notificationBody.trim(),
       sound: sound.trim() || 'default',
-      dataMetadata: dataMetadata.filter(m => m.key.trim() !== '')
+      dataMetadata: dataMetadata.filter(m => m.key.trim() !== ''),
+      MessageType: messageType.trim(),
+      NotificationType: notificationType.trim()
     };
 
     onSave(savedRule);
@@ -282,6 +290,30 @@ export default function RuleFormModal({
                   <option value="MAJOR">MAJOR (Action required)</option>
                   <option value="CRITICAL">CRITICAL (Safety hazards)</option>
                 </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 font-mono mb-1.5">MESSAGE TYPE</label>
+                <input
+                  type="text"
+                  placeholder="e.g. ALERT, REMINDER, TRANSACTIONAL"
+                  value={messageType}
+                  onChange={(e) => setMessageType(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-slate-700 transition font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 font-mono mb-1.5">NOTIFICATION TYPE</label>
+                <input
+                  type="text"
+                  placeholder="e.g. PUSH, SMS, EMAIL"
+                  value={notificationType}
+                  onChange={(e) => setNotificationType(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-slate-700 transition font-sans"
+                />
               </div>
             </div>
 
