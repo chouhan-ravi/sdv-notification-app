@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Rule, SimulationLog, BusinessFilter, CarOwnerSetting, AfterSalesRecord, NotificationScheduler, DynamicCategory, DynamicRuleKey } from './types';
 import { DEFAULT_RULES } from './lib/defaultRules';
 import { DEFAULT_BUSINESS_FILTERS, DEFAULT_CAR_OWNER_SETTINGS } from './lib/defaultFilters';
@@ -48,6 +48,7 @@ import {
 export default function App() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [logs, setLogs] = useState<SimulationLog[]>([]);
+  const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [businessFilters, setBusinessFilters] = useState<BusinessFilter[]>([]);
   const [userSettings, setUserSettings] = useState<CarOwnerSetting[]>([]);
   const [afterSalesRecords, setAfterSalesRecords] = useState<AfterSalesRecord[]>([]);
@@ -95,6 +96,89 @@ export default function App() {
       root.style.backgroundColor = '#020617';
     }
   }, [theme]);
+
+  const wsRef = useRef<WebSocket | null>(null);
+
+  // Initialize real-time Gateway Audit Log WebSocket Feed
+  useEffect(() => {
+    let socket: WebSocket | null = null;
+    let reconnectTimeout: any = null;
+    let isMounted = true;
+
+    function connect() {
+      if (!isMounted) return;
+
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${wsProtocol}//${window.location.host}`;
+      console.log(`[WebSocket Client] Re-establishing log feed connection to: ${wsUrl}`);
+      
+      try {
+        socket = new WebSocket(wsUrl);
+        wsRef.current = socket;
+
+        socket.onopen = () => {
+          if (!isMounted) return;
+          console.log('[WebSocket Client] Channel established with telemetry backend');
+          setWsConnected(true);
+        };
+
+        socket.onmessage = (event) => {
+          if (!isMounted) return;
+          try {
+            const message = JSON.parse(event.data);
+            if (message.type === 'INIT_LOGS' && Array.isArray(message.logs)) {
+              setLogs(message.logs);
+              localStorage.setItem('sdv_simulation_logs', JSON.stringify(message.logs));
+            } else if (message.type === 'NEW_LOG' && message.log) {
+              setLogs((prev) => {
+                // Prevent duplicates (idempotent safeguard)
+                if (prev.some((l) => l.id === message.log.id)) return prev;
+                const next = [...prev, message.log];
+                if (next.length > 50) next.shift();
+                localStorage.setItem('sdv_simulation_logs', JSON.stringify(next));
+                return next;
+              });
+            }
+          } catch (e) {
+            console.error('[WebSocket Client] Failed parsing log feed message', e);
+          }
+        };
+
+        socket.onclose = () => {
+          if (!isMounted) return;
+          console.warn('[WebSocket Client] Connection interrupted, initiating fallback reconnect');
+          setWsConnected(false);
+          wsRef.current = null;
+          
+          reconnectTimeout = setTimeout(() => {
+            connect();
+          }, 4000);
+        };
+
+        socket.onerror = () => {
+          if (socket) {
+            socket.close();
+          }
+        };
+      } catch (err) {
+        console.error('[WebSocket Client] WebSockets connection error', err);
+        setWsConnected(false);
+        reconnectTimeout = setTimeout(() => {
+          connect();
+        }, 4000);
+      }
+    }
+
+    connect();
+
+    return () => {
+      isMounted = false;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
 
   const fetchRulesFromApi = async () => {
     try {
@@ -258,7 +342,7 @@ export default function App() {
     
     const updatedRule = { ...rule, enabled: !rule.enabled };
     try {
-      await apiService.put<Rule>(`/rules/${id}/enable`, {enabled:updatedRule.enabled});
+      await apiService.put<Rule>(`/rules/${id}`, updatedRule);
       triggerToast(`Rule "${rule.name}" ${!rule.enabled ? 'enabled' : 'disabled'} successfully via PUT API`);
       await fetchRulesFromApi();
     } catch (err) {
@@ -348,7 +432,7 @@ export default function App() {
 
   const handleReCache = async () => {
     try {
-      await apiService.post<void>('/rules/re-cache',{});
+      await apiService.get('/rules/re-cache');
       triggerToast('All platform ingestion rules re-cached successfully');
       await fetchRulesFromApi();
     } catch (err: any) {
@@ -473,11 +557,21 @@ export default function App() {
   const handleAddLog = (newLog: SimulationLog) => {
     const updated = [...logs, newLog];
     saveLogsToLocalStorage(updated);
+    
+    // Send newly generated simulation log back to the WebSocket server to persist/broadcast
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'SIMULATE_LOG', log: newLog }));
+    }
   };
 
   const handleClearLogs = () => {
     if (window.confirm('Are you sure you want to purge all simulated event log history?')) {
       saveLogsToLocalStorage([]);
+      
+      // Request server to clear log history over WebSocket
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'CLEAR_LOGS' }));
+      }
       triggerToast('Audit log database purged');
     }
   };
@@ -998,6 +1092,7 @@ export default function App() {
                   logs={logs} 
                   onLoadLogIntoSimulator={handleLoadLog} 
                   onClearLogs={handleClearLogs} 
+                  wsConnected={wsConnected}
                 />
               </div>
             )}
