@@ -20,6 +20,8 @@ export const SAMPLE_PAYLOADS: PresetPayload[] = [
         "timestamp": 1784324464
       },
       "execution_status": "SUCCESS",
+      "messageType": "REMOTE_ENGINE_STRAT",
+      "notificationType": "REMOTE_ENGINE_STRAT",
       "error_code": "NONE",
       "vehicle_state_snapshot": {
         "engine_state": "RUNNING",
@@ -55,6 +57,8 @@ export const SAMPLE_PAYLOADS: PresetPayload[] = [
         "timestamp": 1784324600
       },
       "execution_status": "FAILED",
+      "messageType": "REMOTE_ENGINE_STRAT",
+      "notificationType": "REMOTE_ENGINE_STRAT",
       "error_code": "SAFETY_LOCKOUT_DOORS_UNLOCKED",
       "vehicle_state_snapshot": {
         "engine_state": "OFF",
@@ -90,6 +94,8 @@ export const SAMPLE_PAYLOADS: PresetPayload[] = [
         "timestamp": 1784324810
       },
       "execution_status": "NONE",
+      "messageType": "VEHICLE_TELEMETRY",
+      "notificationType": "VEHICLE_TELEMETRY",
       "error_code": "NONE",
       "vehicle_state_snapshot": {
         "engine_state": "OFF",
@@ -125,6 +131,8 @@ export const SAMPLE_PAYLOADS: PresetPayload[] = [
         "timestamp": 1784325100
       },
       "execution_status": "NONE",
+      "messageType": "VEHICLE_TELEMETRY",
+      "notificationType": "VEHICLE_TELEMETRY",
       "error_code": "NONE",
       "vehicle_state_snapshot": {
         "engine_state": "RUNNING",
@@ -160,6 +168,8 @@ export const SAMPLE_PAYLOADS: PresetPayload[] = [
         "timestamp": 1784325400
       },
       "execution_status": "NONE",
+      "messageType": "VEHICLE_TELEMETRY",
+      "notificationType": "VEHICLE_TELEMETRY",
       "error_code": "SECURITY_BREACH_KEYFOB_ABSENT",
       "vehicle_state_snapshot": {
         "engine_state": "RUNNING",
