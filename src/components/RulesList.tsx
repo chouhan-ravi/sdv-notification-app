@@ -23,7 +23,8 @@ import {
   Play,
   Network,
   Link2,
-  Check
+  Check,
+  RefreshCw
 } from 'lucide-react';
 
 interface RulesListProps {
@@ -34,6 +35,7 @@ interface RulesListProps {
   onDeleteRule: (id: string) => void;
   onDuplicateRule: (rule: Rule) => void;
   onSelectRuleForTesting: (rule: Rule) => void; // Quick-link to copy rule-key or load a test payload matching it
+  onReCache?: () => Promise<void>;
 }
 
 export default function RulesList({
@@ -43,13 +45,28 @@ export default function RulesList({
   onEditRule,
   onDeleteRule,
   onDuplicateRule,
-  onSelectRuleForTesting
+  onSelectRuleForTesting,
+  onReCache
 }: RulesListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCriticality, setSelectedCriticality] = useState<string>('ALL');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [expandedRuleIds, setExpandedRuleIds] = useState<Record<string, boolean>>({});
   const [showMatrix, setShowMatrix] = useState(false);
+  const [isReCaching, setIsReCaching] = useState(false);
+
+  const handleReCacheClick = async () => {
+    if (onReCache) {
+      setIsReCaching(true);
+      try {
+        await onReCache();
+      } catch (err) {
+        console.error('Re-cache error:', err);
+      } finally {
+        setIsReCaching(false);
+      }
+    }
+  };
 
   // Fallback to static CATEGORIES if no categories passed or state is empty
   const activeCategories = categories && categories.length > 0 
@@ -264,6 +281,44 @@ export default function RulesList({
           </div>
         </div>
       </div>
+
+      {/* RE-CACHE ACTION BANNER */}
+      {onReCache && (
+        <div id="re-cache-banner" className="bg-slate-950 border border-slate-850 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 animate-fade-in">
+          <div className="flex items-center space-x-2.5">
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isReCaching ? 'bg-indigo-400' : 'bg-emerald-400'} opacity-75`}></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${isReCaching ? 'bg-indigo-500' : 'bg-emerald-500'}`}></span>
+            </span>
+            <div className="text-center sm:text-left">
+              <h4 className="text-[10px] font-bold font-mono text-slate-300 uppercase tracking-wider">GATEWAY RULE SYNC AGENT</h4>
+              <p className="text-[10px] text-slate-500 font-sans">Force a hot cache reload to instantly propagate active platform rules</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={isReCaching}
+            onClick={handleReCacheClick}
+            className={`w-full sm:w-auto flex items-center justify-center space-x-1.5 px-4 py-1.5 text-xs font-mono font-bold rounded-lg transition duration-200 border ${
+              isReCaching 
+                ? 'bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed'
+                : 'bg-indigo-600/10 hover:bg-indigo-600/20 border-indigo-500/30 hover:border-indigo-500/50 text-indigo-400 active:scale-95'
+            }`}
+          >
+            {isReCaching ? (
+              <>
+                <span className="animate-spin inline-block h-3 w-3 border-2 border-indigo-400 border-t-transparent rounded-full" />
+                <span>RE-CACHING GATEWAY...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-3.5 w-3.5 animate-pulse" />
+                <span>HOT RE-CACHE ALL RULES</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Rules Count Feedback */}
       <div className="flex justify-between items-center px-1">

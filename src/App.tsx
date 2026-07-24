@@ -346,6 +346,17 @@ export default function App() {
     setRuleToEdit(null);
   };
 
+  const handleReCache = async () => {
+    try {
+      await apiService.get('/rules/re-cache');
+      triggerToast('All platform ingestion rules re-cached successfully');
+      await fetchRulesFromApi();
+    } catch (err: any) {
+      console.error('API re-cache failed', err);
+      triggerToast(`Re-cache failed: ${err.message || 'Network error'}`);
+    }
+  };
+
   // Corporate Suppression Filters Handlers
   const handleAddBusinessFilter = (newFilter: BusinessFilter) => {
     const updated = [newFilter, ...businessFilters];
@@ -882,6 +893,7 @@ export default function App() {
                     onDeleteRule={handleDeleteRule}
                     onDuplicateRule={handleDuplicateRule}
                     onSelectRuleForTesting={handleSelectRuleForTesting}
+                    onReCache={handleReCache}
                   />
                 </div>
               )}

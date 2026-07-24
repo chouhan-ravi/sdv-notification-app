@@ -53,8 +53,8 @@ export default function RuleFormModal({
       setNotificationBody(ruleToEdit.notificationBody);
       setSound(ruleToEdit.sound || 'default');
       setDataMetadata(ruleToEdit.dataMetadata || []);
-      setMessageType(ruleToEdit.messageType || '');
-      setNotificationType(ruleToEdit.notificationType || '');
+      setMessageType(ruleToEdit.MessageType || '');
+      setNotificationType(ruleToEdit.NotificationType || '');
       setErrors([]);
     } else {
       // Set default values for fresh new rule
@@ -128,8 +128,6 @@ export default function RuleFormModal({
     if (!name.trim()) errs.push('Rule Name is required');
     if (!ruleKey.trim()) errs.push('Rule Key (e.g. RULE_...) is required');
     if (!categoryKey.trim()) errs.push('Category Key (e.g. VEHICLE_...) is required');
-    if (!messageType.trim()) errs.push('Message Type (e.g. VEHICLE_...) is required');
-    if (!notificationType.trim()) errs.push('Notification Type (e.g. VEHICLE_...) is required');
     if (conditions.length === 0) errs.push('At least one Matching Condition is required');
     
     conditions.forEach((c, idx) => {
@@ -161,8 +159,8 @@ export default function RuleFormModal({
       notificationBody: notificationBody.trim(),
       sound: sound.trim() || 'default',
       dataMetadata: dataMetadata.filter(m => m.key.trim() !== ''),
-      messageType: messageType.trim(),
-      notificationType: notificationType.trim()
+      MessageType: messageType.trim(),
+      NotificationType: notificationType.trim()
     };
 
     onSave(savedRule);

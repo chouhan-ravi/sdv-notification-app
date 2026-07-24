@@ -58,8 +58,6 @@ export interface Rule {
   name: string;
   ruleKey: string; // e.g. RULE_REM_START_SUCCESS_CONFIRM
   categoryKey: string; // e.g. VEHICLE_REMOTE_CONTROL
-  messageType: string; // e.g. VEHICLE_REMOTE_CONTROL
-  notificationType: string; // e.g. VEHICLE_REMOTE_CONTROL
   priority: 'high' | 'normal' | 'low';
   criticality: 'CRITICAL' | 'MAJOR' | 'MINOR' | 'INFO';
   enabled: boolean;
