@@ -14,26 +14,74 @@ export type RuleOperator =
   | 'exists'
   | 'not_exists';
 
-export interface RuleCondition {
+export interface RuleConditionItem {
   id: string;
-  fieldPath: string; // e.g. "vehicle_state_snapshot.engine_state"
+  fieldPath: string; // e.g. "execution_status"
   operator: RuleOperator;
-  value: string; // The value is stored as string and cast as needed for evaluation
+  value: string;
+}
+
+export interface RuleConditionGroup {
+  and?: RuleConditionItem[];
+  or?: RuleConditionItem[];
+}
+
+export interface RuleMetadataItem {
+  key: string;
+  value: string;
+}
+
+export interface NotificationTemplate {
+  title: string;
+  body: string;
+  sound?: string;
+  badge?: number;
+}
+
+export interface RuleConfigItem {
+  id: string;
+  notificationCategory: string; // e.g. "milon.burglar.category"
+  notificationKey: string;      // e.g. "milon.burgluer"
+  criticality: 'CRITICAL' | 'MAJOR' | 'MINOR' | 'INFO' | string;
+  conditions: RuleConditionGroup[];
+  metadata: RuleMetadataItem[];
+  notificationTemplate: NotificationTemplate;
+}
+
+export interface Rule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  description: string;
+  config: RuleConfigItem[];
+  // Optional fallback helpers
+  ruleKey?: string;
+  categoryKey?: string;
+  priority?: 'high' | 'normal' | 'low';
+  criticality?: 'CRITICAL' | 'MAJOR' | 'MINOR' | 'INFO' | string;
+  conditions?: RuleConditionItem[];
+  notificationTitle?: string;
+  notificationBody?: string;
+  sound?: string;
+  dataMetadata?: { key: string; value: string }[];
+  MessageType?: string;
+  NotificationType?: string;
+  translations?: RuleTranslation[];
 }
 
 export interface BusinessFilter {
   id: string;
   name: string;
   categoryKey: string; // e.g. PLUG_N_CHARGE, VEHICLE_REMOTE_CONTROL
-  ruleKey?: string; // Optional specific rule key filter, e.g. RULE_REM_START_SUCCESS_CONFIRM, 'All'
-  cssGen: string; // e.g. "Gen 5", "Gen 6", "Gen 7", "All"
-  vehicleModel: string; // e.g. "Civic", "Model S", "All"
+  ruleKey?: string;
+  cssGen: string;
+  vehicleModel: string;
   yearStart: number;
   yearEnd: number;
   vehicleType: 'ICE' | 'EV' | 'PHEV' | 'All';
   region: 'US' | 'EU' | 'JP' | 'CN' | 'All';
-  enabled: boolean; // Is this filter rule active?
-  action: 'ALLOW' | 'BLOCK'; // Whether to allow or block notifications matching this criteria
+  enabled: boolean;
+  action: 'ALLOW' | 'BLOCK';
   description: string;
 }
 
@@ -41,44 +89,25 @@ export interface CarOwnerSetting {
   id: string;
   userId: string;
   vin: string;
-  categoryKey: string; // e.g. PLUG_N_CHARGE, VEHICLE_REMOTE_CONTROL
-  ruleKey?: string; // Optional specific rule key filter, e.g. RULE_REM_START_SUCCESS_CONFIRM
-  enabled: boolean; // Custom toggle by the owner
-  language?: string; // Preferred locale/language, e.g. 'es', 'fr', 'de', 'zh', 'ja', 'en'
+  categoryKey: string;
+  ruleKey?: string;
+  enabled: boolean;
+  language?: string;
 }
 
 export interface RuleTranslation {
-  locale: string; // e.g. "es", "fr", "de", "zh", "ja"
+  locale: string;
   notificationTitle: string;
   notificationBody: string;
 }
 
-export interface Rule {
-  id: string;
-  name: string;
-  ruleKey: string; // e.g. RULE_REM_START_SUCCESS_CONFIRM
-  categoryKey: string; // e.g. VEHICLE_REMOTE_CONTROL
-  priority: 'high' | 'normal' | 'low';
-  criticality: 'CRITICAL' | 'MAJOR' | 'MINOR' | 'INFO';
-  enabled: boolean;
-  description: string;
-  conditions: RuleCondition[];
-  notificationTitle: string; // e.g. "Remote Start Successful"
-  notificationBody: string; // e.g. "Your engine is running. Cabin temperature is {vehicle_state_snapshot.hvac_status.cabin_temp_c}°C."
-  sound: string; // e.g. "default"
-  dataMetadata: { key: string; value: string }[]; // e.g. [{key: "runtime_limit_minutes", value: "15"}, {key: "engine_state", value: "{vehicle_state_snapshot.engine_state}"}]
-  translations?: RuleTranslation[];
-  MessageType?: string;
-  NotificationType?: string;
-}
-
 export interface SimulationLog {
   id: string;
-  timestamp: string; // Date ISO string
+  timestamp: string;
   vin: string;
   commandId: string;
   executionStatus: string;
-  eventPayload: any; // Original JSON
+  eventPayload: any;
   success: boolean;
   blockedReason?: {
     type: 'BUSINESS_FILTER' | 'USER_SETTING';
@@ -100,16 +129,50 @@ export interface SimulationLog {
       passed: boolean;
     }[];
   }[];
-  pushNotificationPayload: any | null; // Generated Push Notification JSON (null if blocked)
+  pushNotificationPayload: any | null;
+}
+
+export interface RuleEvaluationResponse {
+  status: 'SUCCESS' | 'NO_MATCH' | 'ERROR';
+  timestamp: string;
+  totalRulesEvaluated: number;
+  matchedRulesCount: number;
+  notificationEvent: any;
+  evaluationResults: {
+    ruleId: string;
+    ruleName: string;
+    description: string;
+    enabled: boolean;
+    matchedConfig: {
+      id: string;
+      notificationCategory: string;
+      notificationKey: string;
+      criticality: string;
+      conditionsEvaluated: {
+        groupType: 'and' | 'or';
+        passed: boolean;
+        conditions: {
+          id: string;
+          fieldPath: string;
+          operator: string;
+          expectedValue: string;
+          actualValue: any;
+          passed: boolean;
+        }[];
+      }[];
+      resolvedNotificationTemplate: NotificationTemplate;
+      resolvedMetadata: RuleMetadataItem[];
+    };
+  }[];
 }
 
 export interface AfterSalesRecord {
   id: string;
   vin: string;
   vehicleModel: string;
-  serviceType: string; // e.g. "Periodic Maintenance", "Brake Pad Replacement", "Battery Health Check", "Software Update", "Recall Action"
+  serviceType: string;
   mileage: number;
-  scheduledDate: string; // e.g. "2026-08-15"
+  scheduledDate: string;
   cost: number;
   status: 'Scheduled' | 'In Progress' | 'Completed' | 'Overdue';
   description: string;
@@ -121,11 +184,11 @@ export interface NotificationScheduler {
   id: string;
   name: string;
   triggerCondition: 'DaysBefore' | 'OnStatusChange' | 'MileageExceeds' | 'CronExpression';
-  triggerValue: string; // e.g., "7" (days), "Completed" (status), "15000" (mileage), or cron expression "0 0 * * *"
-  serviceType: string; // "All" or matches Service Type
-  templateTitle: string; // e.g., "Upcoming Service Reminder"
-  templateBody: string; // e.g., "Dear customer, your vehicle {vehicleModel} (VIN: {vin}) is due for {serviceType}."
-  categoryKey: string; // e.g. "VEHICLE_REMOTE_CONTROL" or "All"
+  triggerValue: string;
+  serviceType: string;
+  templateTitle: string;
+  templateBody: string;
+  categoryKey: string;
   enabled: boolean;
   createdDate: string;
   lastExecutedAt?: string;
@@ -135,7 +198,7 @@ export interface NotificationScheduler {
 }
 
 export interface KeyTranslation {
-  locale: string; // e.g. "es", "fr", "de", "zh", "ja"
+  locale: string;
   name: string;
   description?: string;
 }
@@ -156,4 +219,3 @@ export interface DynamicRuleKey {
   description?: string;
   translations?: KeyTranslation[];
 }
-

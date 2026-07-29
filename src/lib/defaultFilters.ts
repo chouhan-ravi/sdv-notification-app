@@ -31,7 +31,7 @@ export const DEFAULT_BUSINESS_FILTERS: BusinessFilter[] = [
   },
   {
     id: 'bf_remote_ice_old',
-    name: 'Block Remote Engine Start for Old Legacy ICE models in Europe',
+    name: 'Block Remote Engine Start for Classic ICE models in Europe',
     categoryKey: 'VEHICLE_REMOTE_CONTROL',
     ruleKey: 'All',
     cssGen: 'Gen 5',

@@ -10,11 +10,11 @@ import { createServer as createViteServer } from 'vite';
 import { WebSocketServer, WebSocket } from 'ws';
 import { DEFAULT_RULES } from './src/lib/defaultRules';
 import { Rule } from './src/types';
+import { evaluateRulesApiEngine } from './src/lib/rulesEvaluator';
 
 const app = express();
 const PORT = 3000;
 const DB_FILE = path.join(process.cwd(), 'rules-db.json');
-const LOGS_DB_FILE = path.join(process.cwd(), 'audit-logs-db.json');
 
 app.use(express.json());
 
@@ -37,82 +37,71 @@ function saveRules(rules: Rule[]) {
   fs.writeFileSync(DB_FILE, JSON.stringify(rules, null, 2), 'utf8');
 }
 
-// Initialize Audit Logs Database
-function getAuditLogs(): any[] {
-  if (fs.existsSync(LOGS_DB_FILE)) {
-    try {
-      const data = fs.readFileSync(LOGS_DB_FILE, 'utf8');
-      return JSON.parse(data);
-    } catch (e) {
-      console.error('Error reading audit logs file, resetting to defaults', e);
-    }
-  }
-
-  // Seed with realistic starting historical audit logs
-  const seedLogs = [
-    {
-      id: "seed_log_1",
-      timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+// Initialize Audit Logs in Memory Only (LocalStorage only on client, no file storage)
+let inMemoryAuditLogs: any[] = [
+  {
+    id: "seed_log_1",
+    timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+    vin: "1HGCR2F8XHA445910",
+    commandId: "CMD_REM_START_001",
+    executionStatus: "SUCCESS",
+    eventPayload: {
+      command: "remote_start",
       vin: "1HGCR2F8XHA445910",
-      commandId: "CMD_REM_START_001",
-      executionStatus: "SUCCESS",
-      eventPayload: {
-        command: "remote_start",
-        vin: "1HGCR2F8XHA445910",
-        vehicle_state_snapshot: {
-          engine_state: "RUNNING",
-          hvac_status: { cabin_temp_c: 21.5 }
-        }
-      },
-      success: true,
-      matchedRules: [{
-        ruleId: "rule_1",
-        ruleName: "Remote Engine Start Confirmation",
-        ruleKey: "RULE_REM_START_SUCCESS_CONFIRM",
-        criticality: "INFO",
-        priority: "normal",
-        conditionEvaluations: []
-      }],
-      pushNotificationPayload: {
-        title: "Remote Start Successful",
-        body: "Your engine is running. Cabin temperature is 21.5°C."
+      vehicle_state_snapshot: {
+        engine_state: "RUNNING",
+        hvac_status: { cabin_temp_c: 21.5 }
       }
     },
-    {
-      id: "seed_log_2",
-      timestamp: new Date(Date.now() - 3600000).toISOString(),
-      vin: "1HGCR2F8XHA982133",
-      commandId: "CMD_BATT_CHK_002",
-      executionStatus: "FAULT",
-      eventPayload: {
-        command: "battery_status_check",
-        vin: "1HGCR2F8XHA982133",
-        vehicle_state_snapshot: {
-          battery_system: { voltage_v: 11.2 }
-        }
-      },
-      success: true,
-      matchedRules: [{
-        ruleId: "rule_3",
-        ruleName: "Low Battery Warning Notification",
-        ruleKey: "RULE_BATTERY_VOLTAGE_FAULT",
-        criticality: "CRITICAL",
-        priority: "high",
-        conditionEvaluations: []
-      }],
-      pushNotificationPayload: {
-        title: "Low Battery Fault Alert",
-        body: "Warning: Vehicle 1HGCR2F8XHA982133 battery voltage is critically low (11.2V)!"
-      }
+    success: true,
+    matchedRules: [{
+      ruleId: "rule_1",
+      ruleName: "Remote Engine Start Confirmation",
+      ruleKey: "RULE_REM_START_SUCCESS_CONFIRM",
+      criticality: "INFO",
+      priority: "normal",
+      conditionEvaluations: []
+    }],
+    pushNotificationPayload: {
+      title: "Remote Start Successful",
+      body: "Your engine is running. Cabin temperature is 21.5°C."
     }
-  ];
+  },
+  {
+    id: "seed_log_2",
+    timestamp: new Date(Date.now() - 3600000).toISOString(),
+    vin: "1HGCR2F8XHA982133",
+    commandId: "CMD_BATT_CHK_002",
+    executionStatus: "FAULT",
+    eventPayload: {
+      command: "battery_status_check",
+      vin: "1HGCR2F8XHA982133",
+      vehicle_state_snapshot: {
+        battery_system: { voltage_v: 11.2 }
+      }
+    },
+    success: true,
+    matchedRules: [{
+      ruleId: "rule_3",
+      ruleName: "Low Battery Warning Notification",
+      ruleKey: "RULE_BATTERY_VOLTAGE_FAULT",
+      criticality: "CRITICAL",
+      priority: "high",
+      conditionEvaluations: []
+    }],
+    pushNotificationPayload: {
+      title: "Low Battery Fault Alert",
+      body: "Warning: Vehicle 1HGCR2F8XHA982133 battery voltage is critically low (11.2V)!"
+    }
+  }
+];
 
-  fs.writeFileSync(LOGS_DB_FILE, JSON.stringify(seedLogs, null, 2), 'utf8');
-  return seedLogs;
+function getAuditLogs(): any[] {
+  return inMemoryAuditLogs;
 }
 
 function saveAuditLogs(logs: any[]) {
-  fs.writeFileSync(LOGS_DB_FILE, JSON.stringify(logs, null, 2), 'utf8');
+  inMemoryAuditLogs = logs;
 }
 
 // Generate realistic mock log feed events
@@ -301,6 +290,35 @@ app.post('/api/rules/reset', (req, res) => {
   res.json(DEFAULT_RULES);
 });
 
+// POST: Call rule evaluation API with notificationEvent JSON payload
+app.post(['/api/rules/evaluate', '/api/evaluate'], (req, res) => {
+  try {
+    const body = req.body || {};
+    // Support notificationEvent wrapper or raw JSON event payload
+    const notificationEvent = body.notificationEvent || body.eventPayload || (body.execution_status || body.vehicle_state_snapshot || body.response_header ? body : {});
+    
+    if (!notificationEvent || Object.keys(notificationEvent).length === 0) {
+      res.status(400).json({ 
+        status: 'ERROR',
+        error: 'Missing notificationEvent object in request body.' 
+      });
+      return;
+    }
+
+    const currentRules = getRules();
+    const evaluationResult = evaluateRulesApiEngine(currentRules, notificationEvent);
+
+    console.log(`[REST API] Rule Evaluation API executed: ${evaluationResult.matchedRulesCount} matched of ${evaluationResult.totalRulesEvaluated} rules.`);
+    res.json(evaluationResult);
+  } catch (err: any) {
+    console.error('[REST API] Error during rule evaluation API call:', err);
+    res.status(500).json({ 
+      status: 'ERROR',
+      error: err.message || 'Internal rule evaluation failure' 
+    });
+  }
+});
+
 // 3. Vite middleware for dev vs Express static distribution for production
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
@@ -326,10 +344,6 @@ async function startServer() {
 
   wss.on('connection', (ws) => {
     console.log('[WebSocket Server] Client connected');
-    
-    // Send initial logs feed history on connect
-    const initialLogs = getAuditLogs();
-    ws.send(JSON.stringify({ type: 'INIT_LOGS', logs: initialLogs }));
 
     ws.on('message', (messageData) => {
       try {
@@ -356,7 +370,7 @@ async function startServer() {
           });
         } else if (msg.type === 'CLEAR_LOGS') {
           saveAuditLogs([]);
-          const broadcastMsg = JSON.stringify({ type: 'INIT_LOGS', logs: [] });
+          const broadcastMsg = JSON.stringify({ type: 'CLEAR_LOGS' });
           wss.clients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
               client.send(broadcastMsg);

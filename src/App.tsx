@@ -9,17 +9,33 @@ import { DEFAULT_RULES } from './lib/defaultRules';
 import { DEFAULT_BUSINESS_FILTERS, DEFAULT_CAR_OWNER_SETTINGS } from './lib/defaultFilters';
 import { DEFAULT_AFTER_SALES_RECORDS, DEFAULT_SCHEDULERS } from './lib/defaultAfterSales';
 import { DEFAULT_DYNAMIC_CATEGORIES, DEFAULT_DYNAMIC_RULE_KEYS } from './lib/defaultCategories';
-import StatsGrid from './components/StatsGrid';
-import RulesList from './components/RulesList';
-import RuleFormModal from './components/RuleFormModal';
-import Simulator from './components/Simulator';
-import AuditLog from './components/AuditLog';
-import NotificationSettings from './components/NotificationSettings';
-import AfterSalesMaintenance from './components/AfterSalesMaintenance';
-import SchedulerConfig from './components/SchedulerConfig';
-import CategoryKeyManager from './components/CategoryKeyManager';
-import TranslationManager from './components/TranslationManager';
+import TelemetryMetricsGrid from './components/TelemetryMetricsGrid';
 import { apiService } from './services/api';
+
+// Lazy loading views for high performance & fast initial UI rendering
+const RulesMatrixManager = React.lazy(() => import('./components/RulesMatrixManager'));
+const RuleConfigModal = React.lazy(() => import('./components/RuleConfigModal'));
+const SimulationPlayground = React.lazy(() => import('./components/SimulationPlayground'));
+const TelemetryAuditLog = React.lazy(() => import('./components/TelemetryAuditLog'));
+const GatewayFilterRegistry = React.lazy(() => import('./components/GatewayFilterRegistry'));
+const AfterSalesMaintenanceManager = React.lazy(() => import('./components/AfterSalesMaintenanceManager'));
+const ProactiveNotificationScheduler = React.lazy(() => import('./components/ProactiveNotificationScheduler'));
+const NotificationCategoryManager = React.lazy(() => import('./components/NotificationCategoryManager'));
+const LocalizationManager = React.lazy(() => import('./components/LocalizationManager'));
+
+function ScreenSkeleton() {
+  return (
+    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-8 shadow-xl flex flex-col items-center justify-center min-h-[380px] space-y-4 animate-pulse my-4">
+      <div className="relative flex items-center justify-center">
+        <div className="h-10 w-10 rounded-full border-2 border-indigo-500/20 border-t-indigo-500 animate-spin" />
+      </div>
+      <div className="text-center space-y-2">
+        <div className="h-4 w-48 bg-slate-800 rounded mx-auto" />
+        <div className="h-3 w-64 bg-slate-850 rounded mx-auto" />
+      </div>
+    </div>
+  );
+}
 import { 
   Shield, 
   Settings, 
@@ -42,7 +58,8 @@ import {
   Wrench,
   Clock,
   Network,
-  Globe
+  Globe,
+  Home
 } from 'lucide-react';
 
 export default function App() {
@@ -126,18 +143,17 @@ export default function App() {
           if (!isMounted) return;
           try {
             const message = JSON.parse(event.data);
-            if (message.type === 'INIT_LOGS' && Array.isArray(message.logs)) {
-              setLogs(message.logs);
-              localStorage.setItem('sdv_simulation_logs', JSON.stringify(message.logs));
-            } else if (message.type === 'NEW_LOG' && message.log) {
+            if (message.type === 'NEW_LOG' && message.log) {
               setLogs((prev) => {
                 // Prevent duplicates (idempotent safeguard)
                 if (prev.some((l) => l.id === message.log.id)) return prev;
-                const next = [...prev, message.log];
-                if (next.length > 50) next.shift();
+                const next = [...prev, message.log].slice(-10);
                 localStorage.setItem('sdv_simulation_logs', JSON.stringify(next));
                 return next;
               });
+            } else if (message.type === 'CLEAR_LOGS') {
+              setLogs([]);
+              localStorage.setItem('sdv_simulation_logs', JSON.stringify([]));
             }
           } catch (e) {
             console.error('[WebSocket Client] Failed parsing log feed message', e);
@@ -209,7 +225,9 @@ export default function App() {
     const savedLogs = localStorage.getItem('sdv_simulation_logs');
     if (savedLogs) {
       try {
-        setLogs(JSON.parse(savedLogs));
+        const parsed = JSON.parse(savedLogs);
+        const cappedLogs = parsed.slice(-10);
+        setLogs(cappedLogs);
       } catch (err) {
         setLogs([]);
       }
@@ -315,8 +333,9 @@ export default function App() {
   };
 
   const saveLogsToLocalStorage = (updatedLogs: SimulationLog[]) => {
-    setLogs(updatedLogs);
-    localStorage.setItem('sdv_simulation_logs', JSON.stringify(updatedLogs));
+    const cappedLogs = updatedLogs.slice(-10);
+    setLogs(cappedLogs);
+    localStorage.setItem('sdv_simulation_logs', JSON.stringify(cappedLogs));
   };
 
   const saveBusinessFiltersToLocalStorage = (updatedFilters: BusinessFilter[]) => {
@@ -677,7 +696,7 @@ export default function App() {
   };
 
   return (
-    <div id="sdv-app-root" className={`min-h-screen flex flex-col lg:flex-row font-sans selection:bg-indigo-600/30 selection:text-white transition-colors duration-200 ${theme === 'fuchsia-light' ? 'fuchsia-light bg-slate-950 text-slate-900' : 'bg-slate-950 text-slate-100'}`}>
+    <div id="sdv-app-root" className={`h-screen flex flex-col lg:flex-row overflow-hidden font-sans selection:bg-indigo-600/30 selection:text-white transition-colors duration-200 ${theme === 'fuchsia-light' ? 'fuchsia-light bg-slate-950 text-slate-900' : 'bg-slate-950 text-slate-100'}`}>
       
       {/* GLOBAL TOAST NOTIFICATION */}
       {toastMsg && (
@@ -688,28 +707,43 @@ export default function App() {
       )}
 
       {/* MOBILE TOP NAVIGATION BAR */}
-      <div className={`lg:hidden border-b p-4 sticky top-0 z-40 flex items-center justify-between ${theme === 'fuchsia-light' ? 'bg-[#0B0C10] border-[#151720]' : 'bg-slate-950 border-slate-800'}`}>
+      <div className={`lg:hidden border-b p-4 sticky top-0 z-40 flex-shrink-0 flex items-center justify-between ${theme === 'fuchsia-light' ? 'bg-[#0B0C10] border-[#151720]' : 'bg-slate-950 border-slate-800'}`}>
         <div className="flex items-center space-x-2.5">
           <div className="p-1.5 rounded-lg bg-gradient-to-tr from-indigo-900 to-indigo-600 text-white shadow">
             <Shield className="h-4 w-4" />
           </div>
           <div>
-            <h1 className="text-xs font-bold tracking-tight text-slate-200 uppercase font-display">SDV Gate Control</h1>
+            <h1 className={`text-xs font-bold tracking-tight uppercase font-display ${theme === 'fuchsia-light' ? 'text-slate-200' : 'text-slate-200'}`}>SDV Gate Control</h1>
             <p className="text-[9px] text-slate-500 font-sans font-medium">Enterprise Console</p>
           </div>
         </div>
         
-        <button
-          onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-          className="p-1.5 rounded-lg border border-slate-800 text-slate-400 hover:text-slate-200"
-        >
-          {mobileSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center space-x-2">
+          {/* HOME MENU ICON BUTTON */}
+          <button
+            onClick={() => setActiveScreen('simulator')}
+            title="Go to Home"
+            className={`p-1.5 rounded-lg border transition flex items-center justify-center ${
+              activeScreen === 'simulator'
+                ? 'bg-indigo-600 border-indigo-500 text-white'
+                : 'border-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Home className="h-4 w-4" />
+          </button>
+
+          <button
+            onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+            className="p-1.5 rounded-lg border border-slate-800 text-slate-400 hover:text-slate-200"
+          >
+            {mobileSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
-      {/* LEFT SIDEBAR MENU BAR (Responsive Desktop-First Sidebar) */}
+      {/* LEFT SIDEBAR MENU BAR (Fixed Desktop Sidebar) */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 flex flex-col z-40 p-4 shrink-0 transition-all duration-300
+        fixed lg:static inset-y-0 left-0 flex flex-col z-40 p-4 shrink-0 transition-all duration-300 overflow-y-auto h-full
         ${theme === 'fuchsia-light' ? 'bg-[#0B0C10] border-r border-[#151720]' : 'bg-slate-950 border-r border-slate-800'}
         ${sidebarCollapsed ? 'lg:w-20' : 'lg:w-64'}
         ${mobileSidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full lg:translate-x-0'}
@@ -786,20 +820,20 @@ export default function App() {
 
               <button
                 onClick={() => { setActiveScreen('category_keys'); setMobileSidebarOpen(false); }}
-                title="Category & Rule Keys"
+                title="NotificationCategory & Key Matrix"
                 className={getNavBtnClass('category_keys')}
               >
                 <Network className="h-4.5 w-4.5 shrink-0" />
-                {!sidebarCollapsed && <span className="truncate">Category & Rule Keys</span>}
+                {!sidebarCollapsed && <span className="truncate">NotificationCategory & Key</span>}
               </button>
 
               <button
                 onClick={() => { setActiveScreen('settings'); setMobileSidebarOpen(false); }}
-                title="Gateway Controls"
+                title="Notification Controls"
                 className={getNavBtnClass('settings')}
               >
                 <Sliders className="h-4.5 w-4.5 shrink-0" />
-                {!sidebarCollapsed && <span className="truncate">Gateway Controls</span>}
+                {!sidebarCollapsed && <span className="truncate">Notification Controls</span>}
               </button>
 
               <button
@@ -888,7 +922,7 @@ export default function App() {
         </div>
 
         {/* METADATA SUMMARY */}
-        <div className={`pt-4 border-t text-[10px] font-mono text-slate-600 space-y-1 ${theme === 'fuchsia-light' ? 'border-[#151720]' : 'border-slate-800'}`}>
+        <div className={`pt-4 border-t text-[10px] font-mono space-y-1 ${theme === 'fuchsia-light' ? 'border-[#151720] text-slate-600' : 'border-slate-800 text-slate-600'}`}>
           {sidebarCollapsed ? (
             <div className="text-center text-[9px] text-slate-500 font-mono">v2.4</div>
           ) : (
@@ -908,57 +942,79 @@ export default function App() {
       </aside>
 
       {/* MAIN SCREEN WORKSPACE CONTENT AREA */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 space-y-6 flex flex-col justify-between max-w-7xl">
+      <main className="flex-1 h-full flex flex-col min-w-0 overflow-hidden">
         
-        <div className="space-y-6">
-          {/* TOP MENU BAR WITH PROFILE AND THEME TOGGLE */}
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-            <div className="flex flex-col">
-              <h2 className="text-sm font-bold font-display uppercase tracking-widest text-slate-100">
-                SDV Vehicle Notification Gateway
-              </h2>
-              <p className="text-[10px] text-slate-400 font-mono">
-                REGISTRY CONSOLE // {activeScreen.toUpperCase()}
-              </p>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              {/* THEME TOGGLE */}
-              <button
-                onClick={handleToggleTheme}
-                title={theme === 'dark' ? "Switch to Coral Light Theme" : "Switch to Dark Theme"}
-                className={`p-2.5 rounded-xl border transition flex items-center justify-center shadow-lg relative group ${
-                  theme === 'fuchsia-light' 
+        {/* TOP MENU BAR WITH PROFILE AND THEME TOGGLE (FIXED HEADER SECTION) */}
+        <header className={`flex-shrink-0 z-30 px-4 md:px-6 lg:px-8 py-3.5 border-b transition-all duration-200 flex items-center justify-between backdrop-blur-md ${
+          theme === 'fuchsia-light' 
+            ? 'bg-[#07080B]/95 border-slate-800/80' 
+            : 'bg-slate-950/95 border-slate-800/80'
+        }`}>
+          <div className="flex flex-col">
+            <h2 className="text-sm font-bold font-display uppercase tracking-widest text-slate-100">
+              SDV Vehicle Notification Gateway
+            </h2>
+            <p className="text-[10px] text-slate-400 font-mono">
+              REGISTRY CONSOLE // {activeScreen.toUpperCase()}
+            </p>
+          </div>
+          
+          <div className="flex items-center space-x-2.5">
+            {/* HOME MENU ICON BUTTON */}
+            <button
+              onClick={() => setActiveScreen('simulator')}
+              title="Go to Home / Playground"
+              className={`p-2.5 rounded-xl border transition flex items-center justify-center shadow-lg relative group ${
+                activeScreen === 'simulator'
+                  ? 'bg-indigo-600 border-indigo-500 text-white shadow-indigo-600/30'
+                  : theme === 'fuchsia-light' 
                     ? 'bg-white border-slate-200 hover:border-[#FC5A34] text-slate-500 hover:text-[#FC5A34]' 
                     : 'bg-slate-900 border-slate-800 hover:border-indigo-500 text-slate-400 hover:text-indigo-400'
-                }`}
-              >
-                {theme === 'dark' ? (
-                  <Sun className="h-4.5 w-4.5 text-amber-500 animate-spin-slow" />
-                ) : (
-                  <Moon className="h-4.5 w-4.5 text-slate-500 animate-pulse" />
-                )}
-              </button>
+              }`}
+            >
+              <Home className="h-4.5 w-4.5" />
+            </button>
 
-              {/* PROFILE SECTION */}
-              <div className={`flex items-center space-x-2 border rounded-xl px-3 py-1.5 shadow-sm ${
+            {/* THEME TOGGLE */}
+            <button
+              onClick={handleToggleTheme}
+              title={theme === 'dark' ? "Switch to Coral Light Theme" : "Switch to Dark Theme"}
+              className={`p-2.5 rounded-xl border transition flex items-center justify-center shadow-lg relative group ${
                 theme === 'fuchsia-light' 
-                  ? 'bg-white border-slate-200 text-slate-800' 
-                  : 'bg-slate-900 border-slate-800 text-slate-100'
-              }`}>
-                <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-[#FC5A34] to-amber-500 flex items-center justify-center text-white text-[10px] font-bold shadow-inner">
-                  RC
-                </div>
-                <div className="hidden sm:flex flex-col text-left">
-                  <span className={`text-[10px] font-bold leading-none ${theme === 'fuchsia-light' ? 'text-slate-800' : 'text-slate-200'}`}>Ravi Chouhan</span>
-                  <span className="text-[8px] font-mono text-slate-500">usr_ravi_55</span>
-                </div>
+                  ? 'bg-white border-slate-200 hover:border-[#FC5A34] text-slate-500 hover:text-[#FC5A34]' 
+                  : 'bg-slate-900 border-slate-800 hover:border-indigo-500 text-slate-400 hover:text-indigo-400'
+              }`}
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-4.5 w-4.5 text-amber-500 animate-spin-slow" />
+              ) : (
+                <Moon className="h-4.5 w-4.5 text-slate-500 animate-pulse" />
+              )}
+            </button>
+
+            {/* PROFILE SECTION */}
+            <div className={`flex items-center space-x-2 border rounded-xl px-3 py-1.5 shadow-sm ${
+              theme === 'fuchsia-light' 
+                ? 'bg-white border-slate-200 text-slate-800' 
+                : 'bg-slate-900 border-slate-800 text-slate-100'
+            }`}>
+              <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-[#FC5A34] to-amber-500 flex items-center justify-center text-white text-[10px] font-bold shadow-inner">
+                RC
+              </div>
+              <div className="hidden sm:flex flex-col text-left">
+                <span className={`text-[10px] font-bold leading-none ${theme === 'fuchsia-light' ? 'text-slate-800' : 'text-slate-200'}`}>Ravi Chouhan</span>
+                <span className="text-[8px] font-mono text-slate-500">usr_ravi_55</span>
               </div>
             </div>
           </div>
+        </header>
 
-          {/* STATS OVERVIEW GRID */}
-          <StatsGrid rules={rules} logs={logs} />
+        {/* SCROLLABLE WORKSPACE CONTENT BODY */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 space-y-6 flex flex-col justify-between max-w-7xl w-full mx-auto">
+          
+          <div className="space-y-6">
+            {/* STATS OVERVIEW GRID */}
+          <TelemetryMetricsGrid rules={rules} logs={logs} />
 
           {/* ACTIVE SCREEN RENDERING LAYOUT */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -966,134 +1022,136 @@ export default function App() {
             {/* SCREEN-SPECIFIC VIEWS */}
             <div className={`${(activeScreen === 'settings' || activeScreen === 'after_sales' || activeScreen === 'scheduler' || activeScreen === 'category_keys' || activeScreen === 'i18n') ? 'lg:col-span-12' : 'lg:col-span-8'} flex flex-col space-y-4`}>
               
-              {activeScreen === 'simulator' && (
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2 border-b border-slate-900 pb-2">
-                    <Terminal className="h-4.5 w-4.5 text-indigo-400" />
-                    <h2 className="text-xs font-bold font-mono text-slate-400 uppercase tracking-wider">Simulation Playground Sandbox</h2>
+              <React.Suspense fallback={<ScreenSkeleton />}>
+                {activeScreen === 'simulator' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 border-b border-slate-900 pb-2">
+                      <Terminal className="h-4.5 w-4.5 text-indigo-400" />
+                      <h2 className="text-xs font-bold font-mono text-slate-400 uppercase tracking-wider">Simulation Playground Sandbox</h2>
+                    </div>
+                    
+                    <SimulationPlayground 
+                      rules={rules}
+                      businessFilters={businessFilters}
+                      userSettings={userSettings}
+                      onAddLog={handleAddLog} 
+                      activeRuleKeyFilter={activeRuleKeyFilter || undefined}
+                    />
                   </div>
-                  
-                  <Simulator 
+                )}
+
+                {activeScreen === 'rules' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 border-b border-slate-900 pb-2">
+                      <Cpu className="h-4.5 w-4.5 text-indigo-400" />
+                      <h2 className="text-xs font-bold font-mono text-slate-400 uppercase tracking-wider">Active Platform Ingestion Rules Matrix</h2>
+                    </div>
+
+                    <RulesMatrixManager 
+                      rules={rules}
+                      categories={categories}
+                      onToggleRule={handleToggleRule}
+                      onEditRule={handleEditRuleTrigger}
+                      onDeleteRule={handleDeleteRule}
+                      onDuplicateRule={handleDuplicateRule}
+                      onSelectRuleForTesting={handleSelectRuleForTesting}
+                      onReCache={handleReCache}
+                    />
+                  </div>
+                )}
+
+                {activeScreen === 'settings' && (
+                  <GatewayFilterRegistry
                     rules={rules}
                     businessFilters={businessFilters}
                     userSettings={userSettings}
-                    onAddLog={handleAddLog} 
-                    activeRuleKeyFilter={activeRuleKeyFilter || undefined}
+                    categories={categories}
+                    onAddBusinessFilter={handleAddBusinessFilter}
+                    onToggleBusinessFilter={handleToggleBusinessFilter}
+                    onDeleteBusinessFilter={handleDeleteBusinessFilter}
+                    onAddUserSetting={handleAddUserSetting}
+                    onToggleUserSetting={handleToggleUserSetting}
+                    onDeleteUserSetting={handleDeleteUserSetting}
                   />
-                </div>
-              )}
+                )}
 
-              {activeScreen === 'rules' && (
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2 border-b border-slate-900 pb-2">
-                    <Cpu className="h-4.5 w-4.5 text-indigo-400" />
-                    <h2 className="text-xs font-bold font-mono text-slate-400 uppercase tracking-wider">Active Platform Ingestion Rules Matrix</h2>
+                {activeScreen === 'after_sales' && (
+                  <div className="space-y-4">
+                    <AfterSalesMaintenanceManager
+                      records={afterSalesRecords}
+                      schedulers={schedulers}
+                      onAddRecord={handleAddAfterSalesRecord}
+                      onUpdateRecord={handleUpdateAfterSalesRecord}
+                      onDeleteRecord={handleDeleteAfterSalesRecord}
+                      onAddLog={handleAddLog}
+                      triggerToast={triggerToast}
+                    />
                   </div>
+                )}
 
-                  <RulesList 
-                    rules={rules}
-                    categories={categories}
-                    onToggleRule={handleToggleRule}
-                    onEditRule={handleEditRuleTrigger}
-                    onDeleteRule={handleDeleteRule}
-                    onDuplicateRule={handleDuplicateRule}
-                    onSelectRuleForTesting={handleSelectRuleForTesting}
-                    onReCache={handleReCache}
-                  />
-                </div>
-              )}
+                {activeScreen === 'scheduler' && (
+                  <div className="space-y-4">
+                    <ProactiveNotificationScheduler
+                      schedulers={schedulers}
+                      afterSalesRecords={afterSalesRecords}
+                      rules={rules}
+                      businessFilters={businessFilters}
+                      userSettings={userSettings}
+                      onAddScheduler={handleAddScheduler}
+                      onUpdateScheduler={handleUpdateScheduler}
+                      onDeleteScheduler={handleDeleteScheduler}
+                      onAddLog={handleAddLog}
+                      triggerToast={triggerToast}
+                    />
+                  </div>
+                )}
 
-              {activeScreen === 'settings' && (
-                <NotificationSettings
-                  rules={rules}
-                  businessFilters={businessFilters}
-                  userSettings={userSettings}
-                  categories={categories}
-                  onAddBusinessFilter={handleAddBusinessFilter}
-                  onToggleBusinessFilter={handleToggleBusinessFilter}
-                  onDeleteBusinessFilter={handleDeleteBusinessFilter}
-                  onAddUserSetting={handleAddUserSetting}
-                  onToggleUserSetting={handleToggleUserSetting}
-                  onDeleteUserSetting={handleDeleteUserSetting}
-                />
-              )}
+                {activeScreen === 'category_keys' && (
+                  <div className="space-y-4">
+                    <NotificationCategoryManager
+                      categories={categories}
+                      ruleKeys={ruleKeys}
+                      rules={rules}
+                      onAddCategory={handleAddCategory}
+                      onUpdateCategory={handleUpdateCategory}
+                      onDeleteCategory={handleDeleteCategory}
+                      onAddRuleKey={handleAddRuleKey}
+                      onUpdateRuleKey={handleUpdateRuleKey}
+                      onDeleteRuleKey={handleDeleteRuleKey}
+                      triggerToast={triggerToast}
+                    />
+                  </div>
+                )}
 
-              {activeScreen === 'after_sales' && (
-                <div className="space-y-4">
-                  <AfterSalesMaintenance
-                    records={afterSalesRecords}
-                    schedulers={schedulers}
-                    onAddRecord={handleAddAfterSalesRecord}
-                    onUpdateRecord={handleUpdateAfterSalesRecord}
-                    onDeleteRecord={handleDeleteAfterSalesRecord}
-                    onAddLog={handleAddLog}
-                    triggerToast={triggerToast}
-                  />
-                </div>
-              )}
-
-              {activeScreen === 'scheduler' && (
-                <div className="space-y-4">
-                  <SchedulerConfig
-                    schedulers={schedulers}
-                    afterSalesRecords={afterSalesRecords}
-                    rules={rules}
-                    businessFilters={businessFilters}
-                    userSettings={userSettings}
-                    onAddScheduler={handleAddScheduler}
-                    onUpdateScheduler={handleUpdateScheduler}
-                    onDeleteScheduler={handleDeleteScheduler}
-                    onAddLog={handleAddLog}
-                    triggerToast={triggerToast}
-                  />
-                </div>
-              )}
-
-              {activeScreen === 'category_keys' && (
-                <div className="space-y-4">
-                  <CategoryKeyManager
-                    categories={categories}
-                    ruleKeys={ruleKeys}
-                    rules={rules}
-                    onAddCategory={handleAddCategory}
-                    onUpdateCategory={handleUpdateCategory}
-                    onDeleteCategory={handleDeleteCategory}
-                    onAddRuleKey={handleAddRuleKey}
-                    onUpdateRuleKey={handleUpdateRuleKey}
-                    onDeleteRuleKey={handleDeleteRuleKey}
-                    triggerToast={triggerToast}
-                  />
-                </div>
-              )}
-
-              {activeScreen === 'i18n' && (
-                <div className="space-y-4">
-                  <TranslationManager
-                    rules={rules}
-                    userSettings={userSettings}
-                    onUpdateRule={(updatedRule) => {
-                      const updated = rules.map(r => r.id === updatedRule.id ? updatedRule : r);
-                      saveRulesToLocalStorage(updated);
-                    }}
-                    onUpdateUserSettings={saveUserSettingsToLocalStorage}
-                    triggerToast={triggerToast}
-                  />
-                </div>
-              )}
-
-
+                {activeScreen === 'i18n' && (
+                  <div className="space-y-4">
+                    <LocalizationManager
+                      rules={rules}
+                      userSettings={userSettings}
+                      onUpdateRule={(updatedRule) => {
+                        const updated = rules.map(r => r.id === updatedRule.id ? updatedRule : r);
+                        saveRulesToLocalStorage(updated);
+                      }}
+                      onUpdateUserSettings={saveUserSettingsToLocalStorage}
+                      triggerToast={triggerToast}
+                    />
+                  </div>
+                )}
+              </React.Suspense>
 
             </div>
 
             {/* SIDEBAR HISTORICAL AUDIT LOGS (Only visible in Simulation & Rules views) */}
             {(activeScreen !== 'settings' && activeScreen !== 'after_sales' && activeScreen !== 'scheduler' && activeScreen !== 'category_keys' && activeScreen !== 'i18n') && (
               <div className="lg:col-span-4">
-                <AuditLog 
-                  logs={logs} 
-                  onLoadLogIntoSimulator={handleLoadLog} 
-                  onClearLogs={handleClearLogs} 
-                  wsConnected={wsConnected}
-                />
+                <React.Suspense fallback={<ScreenSkeleton />}>
+                  <TelemetryAuditLog 
+                    logs={logs} 
+                    onLoadLogIntoSimulator={handleLoadLog} 
+                    onClearLogs={handleClearLogs} 
+                    wsConnected={wsConnected}
+                  />
+                </React.Suspense>
               </div>
             )}
 
@@ -1106,20 +1164,24 @@ export default function App() {
           <span>© 2026 AUTOMOTIVE EDGE NETWORKS</span>
         </footer>
 
+        </div>
+
       </main>
 
       {/* OVERLAY SLIDE-OVER MODALS */}
-      <RuleFormModal
-        isOpen={isFormOpen}
-        onClose={() => {
-          setIsFormOpen(false);
-          setRuleToEdit(null);
-        }}
-        onSave={handleSaveRule}
-        ruleToEdit={ruleToEdit}
-        categories={categories}
-        ruleKeys={ruleKeys}
-      />
+      <React.Suspense fallback={null}>
+        <RuleConfigModal
+          isOpen={isFormOpen}
+          onClose={() => {
+            setIsFormOpen(false);
+            setRuleToEdit(null);
+          }}
+          onSave={handleSaveRule}
+          ruleToEdit={ruleToEdit}
+          categories={categories}
+          ruleKeys={ruleKeys}
+        />
+      </React.Suspense>
 
     </div>
   );

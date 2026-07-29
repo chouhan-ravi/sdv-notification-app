@@ -3,10 +3,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Rule, RuleCondition, SimulationLog, BusinessFilter, CarOwnerSetting } from '../types';
+import { 
+  Rule, 
+  RuleConditionItem, 
+  RuleConditionGroup, 
+  RuleConfigItem, 
+  SimulationLog, 
+  BusinessFilter, 
+  CarOwnerSetting,
+  RuleEvaluationResponse 
+} from '../types';
 
 /**
- * Safely accesses nested properties in a JSON object using dot notation path (e.g. "vehicle_state_snapshot.hvac_status.cabin_temp_c")
+ * Safely accesses nested properties in a JSON object using dot notation path (e.g. "vehicle_state_snapshot.telemetry.12v_battery_v")
  */
 export function getNestedValue(obj: any, path: string): any {
   if (!obj || !path) return undefined;
@@ -20,16 +29,16 @@ export function getNestedValue(obj: any, path: string): any {
 }
 
 /**
- * Evaluates a single rule condition against the incoming event JSON payload
+ * Evaluates a single condition item against an incoming payload
  */
-export function evaluateCondition(condition: RuleCondition, payload: any): { passed: boolean; actualValue: any } {
-  const actualValue = getNestedValue(payload, condition.fieldPath);
-  const expectedStr = condition.value;
+export function evaluateConditionItem(cond: RuleConditionItem, payload: any): { passed: boolean; actualValue: any } {
+  const actualValue = getNestedValue(payload, cond.fieldPath);
+  const expectedStr = cond.value;
 
-  if (condition.operator === 'exists') {
+  if (cond.operator === 'exists') {
     return { passed: actualValue !== undefined && actualValue !== null, actualValue };
   }
-  if (condition.operator === 'not_exists') {
+  if (cond.operator === 'not_exists') {
     return { passed: actualValue === undefined || actualValue === null, actualValue };
   }
 
@@ -37,7 +46,7 @@ export function evaluateCondition(condition: RuleCondition, payload: any): { pas
     return { passed: false, actualValue: undefined };
   }
 
-  switch (condition.operator) {
+  switch (cond.operator) {
     case 'equals':
       return { 
         passed: String(actualValue).toLowerCase() === String(expectedStr).toLowerCase(), 
@@ -85,7 +94,7 @@ export function evaluateCondition(condition: RuleCondition, payload: any): { pas
 }
 
 /**
- * Parses dynamic placeholders like {vehicle_state_snapshot.hvac_status.cabin_temp_c} in strings
+ * Parses dynamic placeholders like {vehicle_state_snapshot.engine_state}
  */
 export function parseTemplate(template: string, payload: any): string {
   if (!template) return '';
@@ -96,8 +105,105 @@ export function parseTemplate(template: string, payload: any): string {
 }
 
 /**
- * Runs the evaluation for all active rules against a vehicle event payload.
- * It returns a structured SimulationLog detailing matching rules, evaluations, and generated outputs.
+ * Evaluates a condition group ("and" / "or")
+ */
+export function evaluateConditionGroup(group: RuleConditionGroup, payload: any) {
+  let groupType: 'and' | 'or' = 'and';
+  let condList: RuleConditionItem[] = [];
+
+  if (group.and) {
+    groupType = 'and';
+    condList = group.and;
+  } else if (group.or) {
+    groupType = 'or';
+    condList = group.or;
+  }
+
+  const conditionResults = condList.map(cond => {
+    const { passed, actualValue } = evaluateConditionItem(cond, payload);
+    return {
+      id: cond.id,
+      fieldPath: cond.fieldPath,
+      operator: cond.operator,
+      expectedValue: cond.value,
+      actualValue,
+      passed
+    };
+  });
+
+  const passed = groupType === 'and'
+    ? (conditionResults.length > 0 && conditionResults.every(c => c.passed))
+    : (conditionResults.length > 0 && conditionResults.some(c => c.passed));
+
+  return {
+    groupType,
+    passed,
+    conditions: conditionResults
+  };
+}
+
+/**
+ * Backend API Rule Evaluation Engine
+ */
+export function evaluateRulesApiEngine(
+  rules: Rule[], 
+  payload: any
+): RuleEvaluationResponse {
+  const timestampIso = new Date().toISOString();
+  const activeRules = rules.filter(r => r.enabled);
+  const evaluationResults: RuleEvaluationResponse['evaluationResults'] = [];
+
+  for (const rule of activeRules) {
+    if (!rule.config || rule.config.length === 0) continue;
+
+    for (const cfg of rule.config) {
+      const groupsEvaluated = (cfg.conditions || []).map(g => evaluateConditionGroup(g, payload));
+      const configMatched = groupsEvaluated.length > 0 && groupsEvaluated.every(g => g.passed);
+
+      if (configMatched) {
+        // Resolve dynamic templates
+        const resolvedTitle = parseTemplate(cfg.notificationTemplate.title, payload);
+        const resolvedBody = parseTemplate(cfg.notificationTemplate.body, payload);
+        const resolvedMetadata = (cfg.metadata || []).map(m => ({
+          key: m.key,
+          value: parseTemplate(m.value, payload)
+        }));
+
+        evaluationResults.push({
+          ruleId: rule.id,
+          ruleName: rule.name,
+          description: rule.description,
+          enabled: rule.enabled,
+          matchedConfig: {
+            id: cfg.id,
+            notificationCategory: cfg.notificationCategory,
+            notificationKey: cfg.notificationKey,
+            criticality: cfg.criticality,
+            conditionsEvaluated: groupsEvaluated,
+            resolvedNotificationTemplate: {
+              ...cfg.notificationTemplate,
+              title: resolvedTitle,
+              body: resolvedBody
+            },
+            resolvedMetadata
+          }
+        });
+      }
+    }
+  }
+
+  return {
+    status: evaluationResults.length > 0 ? 'SUCCESS' : 'NO_MATCH',
+    timestamp: timestampIso,
+    totalRulesEvaluated: activeRules.length,
+    matchedRulesCount: evaluationResults.length,
+    notificationEvent: payload,
+    evaluationResults
+  };
+}
+
+/**
+ * Simulation log evaluation runner for client & WebSocket feeds
  */
 export function runRulesEvaluation(
   rules: Rule[], 
@@ -107,175 +213,62 @@ export function runRulesEvaluation(
   contextOverride?: { cssGen: string; vehicleModel: string; year: number; vehicleType: 'ICE' | 'EV' | 'PHEV' | 'All'; region: string; userId: string }
 ): SimulationLog {
   const timestampIso = new Date().toISOString();
-  
-  // Extract basic event header details safely
-  const vin = getNestedValue(payload, 'response_header.vin') || 'UNKNOWN_VIN';
-  const commandId = getNestedValue(payload, 'response_header.command_id') || 'UNKNOWN_CMD';
-  const executionStatus = getNestedValue(payload, 'execution_status') || 'UNKNOWN_STATUS';
+  const vin = getNestedValue(payload, 'response_header.vin') || getNestedValue(payload, 'vin') || '1HGCR2F8XHA000000';
+  const commandId = getNestedValue(payload, 'response_header.command_id') || 'CMD_EVAL_01';
+  const executionStatus = getNestedValue(payload, 'execution_status') || 'SUCCESS';
 
-  // Extract / override contextual attributes
-  const cssGen = contextOverride?.cssGen || getNestedValue(payload, 'vehicle_context.css_gen') || 'Gen 6';
-  const vehicleModel = contextOverride?.vehicleModel || getNestedValue(payload, 'vehicle_context.model') || 'Civic';
-  const year = contextOverride?.year || Number(getNestedValue(payload, 'vehicle_context.year')) || 2024;
-  const vehicleType = contextOverride?.vehicleType || getNestedValue(payload, 'vehicle_context.type') || getNestedValue(payload, 'vehicle_state_snapshot.propulsion_system') || 'ICE';
-  const region = contextOverride?.region || getNestedValue(payload, 'vehicle_context.region') || 'US';
-  const userId = contextOverride?.userId || getNestedValue(payload, 'vehicle_context.user_id') || 'usr_ravi_55';
-
+  const apiResponse = evaluateRulesApiEngine(rules, payload);
   const matchedRulesList: SimulationLog['matchedRules'] = [];
 
-  // Evaluate enabled rules
-  const activeRules = rules.filter(r => r.enabled);
-
-  for (const rule of activeRules) {
-    const conditionEvaluations = rule.conditions.map(cond => {
-      const { passed, actualValue } = evaluateCondition(cond, payload);
-      return {
-        conditionId: cond.id,
-        fieldPath: cond.fieldPath,
-        operator: cond.operator,
-        expectedValue: cond.value,
-        actualValue,
-        passed,
-      };
+  apiResponse.evaluationResults.forEach(res => {
+    const matchedConds: any[] = [];
+    res.matchedConfig.conditionsEvaluated.forEach(g => {
+      g.conditions.forEach(c => {
+        matchedConds.push({
+          conditionId: c.id,
+          fieldPath: c.fieldPath,
+          operator: c.operator,
+          expectedValue: c.expectedValue,
+          actualValue: c.actualValue,
+          passed: c.passed
+        });
+      });
     });
 
-    // All conditions must pass
-    const allPassed = conditionEvaluations.length > 0 && conditionEvaluations.every(ev => ev.passed);
+    matchedRulesList.push({
+      ruleId: res.ruleId,
+      ruleName: res.ruleName,
+      ruleKey: res.matchedConfig.notificationKey,
+      criticality: res.matchedConfig.criticality,
+      priority: 'normal',
+      conditionEvaluations: matchedConds
+    });
+  });
 
-    if (allPassed) {
-      matchedRulesList.push({
-        ruleId: rule.id,
-        ruleName: rule.name,
-        ruleKey: rule.ruleKey,
-        criticality: rule.criticality,
-        priority: rule.priority,
-        conditionEvaluations,
-      });
-    }
-  }
+  let pushNotificationPayload: any = null;
+  if (apiResponse.evaluationResults.length > 0) {
+    const topMatch = apiResponse.evaluationResults[0];
+    const dataObj: Record<string, string> = {
+      category: topMatch.matchedConfig.notificationCategory,
+      rule_key: topMatch.matchedConfig.notificationKey,
+      vin: vin,
+      timestamp: timestampIso
+    };
 
-  // Generate enriched push notification payload based on the HIGHEST priority or FIRST matched rule
-  let pushNotificationPayload: any | null = null;
-  let blockedReason: SimulationLog['blockedReason'] = undefined;
-  
-  const primaryMatch = matchedRulesList.find(r => r.priority === 'high') || matchedRulesList[0];
+    topMatch.matchedConfig.resolvedMetadata.forEach(m => {
+      dataObj[m.key] = m.value;
+    });
 
-  if (primaryMatch) {
-    const matchingRuleSource = rules.find(r => r.id === primaryMatch.ruleId)!;
-    const catKey = matchingRuleSource.categoryKey;
-
-    // 1. Evaluate User Preferences / Car Owner Settings first
-    const userPref = userSettings.find(s => 
-      s.userId === userId && 
-      s.vin === vin && 
-      (s.categoryKey === 'All' || s.categoryKey === catKey) &&
-      (!s.ruleKey || s.ruleKey === 'All' || s.ruleKey === matchingRuleSource.ruleKey)
-    );
-
-    if (userPref && userPref.enabled === false) {
-      const scopeText = userPref.ruleKey && userPref.ruleKey !== 'All'
-        ? `rule "${userPref.ruleKey}"`
-        : (userPref.categoryKey === 'All' ? 'all' : `"${catKey}"`) + ' alerts';
-      blockedReason = {
-        type: 'USER_SETTING',
-        message: `Opted-out by Car Owner preference: User ID "${userId}" has muted ${scopeText} on VIN "${vin}".`
-      };
-    }
-
-    // 2. Evaluate Global Corporate Business Ingress Filters if not already blocked
-    if (!blockedReason) {
-      const matchingFilter = businessFilters.find(f => {
-        if (!f.enabled) return false;
-        if (f.categoryKey !== 'All' && f.categoryKey !== catKey) return false;
-
-        // Match Rule Key
-        if (f.ruleKey && f.ruleKey !== 'All' && f.ruleKey !== matchingRuleSource.ruleKey) return false;
-
-        // Match CSS Generation
-        if (f.cssGen !== 'All' && f.cssGen.toLowerCase() !== cssGen.toLowerCase()) return false;
-
-        // Match Vehicle Model
-        if (f.vehicleModel !== 'All' && f.vehicleModel.toLowerCase() !== vehicleModel.toLowerCase()) return false;
-
-        // Match Model Year range
-        if (year < f.yearStart || year > f.yearEnd) return false;
-
-        // Match Fuel Propulsion Type
-        if (f.vehicleType !== 'All' && f.vehicleType.toLowerCase() !== vehicleType.toLowerCase()) return false;
-
-        // Match Region
-        if (f.region !== 'All' && f.region.toLowerCase() !== region.toLowerCase()) return false;
-
-        return true;
-      });
-
-      if (matchingFilter) {
-        if (matchingFilter.action === 'BLOCK') {
-          blockedReason = {
-            type: 'BUSINESS_FILTER',
-            message: `Corporate Blocked: Notification category "${catKey}" is blocked by business rule [${matchingFilter.name}] for ${region} region under current vehicle spec.`,
-            filterId: matchingFilter.id
-          };
-        }
-      }
-    }
-
-    // If not blocked, generate notification
-    if (!blockedReason) {
-      // Find if the car owner has a preferred language specified in settings
-      const ownerSetting = userSettings.find(s => s.userId === userId && s.vin === vin);
-      const preferredLanguage = ownerSetting?.language || 'en';
-
-      let titleTemplate = matchingRuleSource.notificationTitle;
-      let bodyTemplate = matchingRuleSource.notificationBody;
-
-      if (preferredLanguage && preferredLanguage !== 'en' && matchingRuleSource.translations) {
-        const trans = matchingRuleSource.translations.find(t => t.locale === preferredLanguage);
-        if (trans) {
-          if (trans.notificationTitle) titleTemplate = trans.notificationTitle;
-          if (trans.notificationBody) bodyTemplate = trans.notificationBody;
-        }
-      }
-
-      // Evaluate template strings
-      const title = parseTemplate(titleTemplate, payload);
-      const body = parseTemplate(bodyTemplate, payload);
-
-      // Build data section
-      const dynamicData: Record<string, string> = {
-        notification_type: 'REMOTE_COMMAND_STATUS',
-        category: matchingRuleSource.categoryKey,
-        rule_key: matchingRuleSource.ruleKey,
-        vin: vin,
-        timestamp: timestampIso,
-        command_id: commandId,
-        execution_status: executionStatus,
-        context_css_gen: cssGen,
-        context_region: region,
-        context_type: vehicleType,
-        context_model: vehicleModel,
-        context_year: String(year),
-        context_user_id: userId
-      };
-
-      // Add extra custom dynamic metadata key-values defined in the rule
-      matchingRuleSource.dataMetadata.forEach(meta => {
-        if (meta.key) {
-          dynamicData[meta.key] = parseTemplate(meta.value, payload);
-        }
-      });
-
-      pushNotificationPayload = {
-        to: 'device_registration_token_xyz123',
-        priority: matchingRuleSource.priority,
-        notification: {
-          title: title,
-          body: body,
-          sound: matchingRuleSource.sound || 'default',
-        },
-        data: dynamicData,
-      };
-    }
+    pushNotificationPayload = {
+      to: 'device_registration_token_xyz123',
+      priority: 'high',
+      notification: {
+        title: topMatch.matchedConfig.resolvedNotificationTemplate.title,
+        body: topMatch.matchedConfig.resolvedNotificationTemplate.body,
+        sound: topMatch.matchedConfig.resolvedNotificationTemplate.sound || 'default'
+      },
+      data: dataObj
+    };
   }
 
   return {
@@ -285,9 +278,8 @@ export function runRulesEvaluation(
     commandId,
     executionStatus,
     eventPayload: payload,
-    success: matchedRulesList.length > 0 && !blockedReason,
-    blockedReason,
+    success: matchedRulesList.length > 0,
     matchedRules: matchedRulesList,
-    pushNotificationPayload,
+    pushNotificationPayload
   };
 }
