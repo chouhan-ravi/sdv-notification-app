@@ -52,7 +52,21 @@ export default function RulesList({
   const [expandedRuleIds, setExpandedRuleIds] = useState<Record<string, boolean>>({});
   const [showMatrix, setShowMatrix] = useState(false);
   const [isReCaching, setIsReCaching] = useState(false);
+  const [reCachingRuleId, setReCachingRuleId] = useState<string | null>(null);
   const [copiedRuleId, setCopiedRuleId] = useState<string | null>(null);
+
+  const handleRuleReCache = async (ruleId: string) => {
+    if (onReCache) {
+      setReCachingRuleId(ruleId);
+      try {
+        await onReCache();
+      } catch (err) {
+        console.error('Re-cache error:', err);
+      } finally {
+        setReCachingRuleId(null);
+      }
+    }
+  };
 
   const handleReCacheClick = async () => {
     if (onReCache) {
@@ -398,6 +412,16 @@ export default function RulesList({
                           className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg bg-slate-950 hover:bg-slate-850 transition duration-150 border border-slate-850"
                         >
                           <Copy className="h-3.5 w-3.5" />
+                        </button>
+
+                        <button
+                          id={`recache-rule-${rule.id}`}
+                          onClick={() => handleRuleReCache(rule.id)}
+                          disabled={reCachingRuleId === rule.id}
+                          title="Re-cache Rule"
+                          className="p-1.5 text-indigo-400 hover:text-indigo-300 rounded-lg bg-slate-950 hover:bg-indigo-950/40 transition duration-150 border border-slate-850 flex items-center space-x-1"
+                        >
+                          <RefreshCw className={`h-3.5 w-3.5 ${reCachingRuleId === rule.id ? 'animate-spin text-indigo-400' : ''}`} />
                         </button>
 
                         <button

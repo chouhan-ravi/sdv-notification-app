@@ -19,6 +19,7 @@ export const SAMPLE_PAYLOADS: PresetPayload[] = [
         "vin": "1HGCR2F8XHA000000",
         "timestamp": 1784324464
       },
+      "notification_type": "MILON_RULE",
       "execution_status": "SUCCESS",
       "error_code": "NONE",
       "vehicle_state_snapshot": {
@@ -54,6 +55,7 @@ export const SAMPLE_PAYLOADS: PresetPayload[] = [
         "vin": "1HGCR2F8XHA000000",
         "timestamp": 1784324600
       },
+      "notification_type": "RLU_NOTIFICATION",
       "execution_status": "FAILED",
       "error_code": "SAFETY_LOCKOUT_DOORS_UNLOCKED",
       "vehicle_state_snapshot": {
@@ -89,6 +91,7 @@ export const SAMPLE_PAYLOADS: PresetPayload[] = [
         "vin": "1HGCR2F8XHA445910",
         "timestamp": 1784324810
       },
+      "notification_type": "MILON_RULE",
       "execution_status": "NONE",
       "error_code": "NONE",
       "vehicle_state_snapshot": {
@@ -124,6 +127,7 @@ export const SAMPLE_PAYLOADS: PresetPayload[] = [
         "vin": "1HGCR2F8XHA982133",
         "timestamp": 1784325100
       },
+      "notification_type": "RLU_NOTIFICATION",
       "execution_status": "NONE",
       "error_code": "NONE",
       "vehicle_state_snapshot": {
@@ -159,6 +163,7 @@ export const SAMPLE_PAYLOADS: PresetPayload[] = [
         "vin": "1HGCR2F8XHA831200",
         "timestamp": 1784325400
       },
+      "notification_type": "SECURITY_NOTIFICATION",
       "execution_status": "NONE",
       "error_code": "SECURITY_BREACH_KEYFOB_ABSENT",
       "vehicle_state_snapshot": {
