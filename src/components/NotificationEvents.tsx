@@ -187,8 +187,8 @@ export default function NotificationEvents({ logs, onLoadLogIntoSimulator, onCle
         />
       </div>
 
-      {/* ONE-LINE EVENT LIST */}
-      <div className="flex-1 overflow-y-auto max-h-[520px] space-y-1.5 pr-1">
+      {/* MULTI-LINE EVENT LIST */}
+      <div className="flex-1 overflow-y-auto max-h-[560px] space-y-2 pr-1">
         {filteredEvents.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center py-12 px-4 bg-slate-950/40 border border-slate-850/60 rounded-xl">
             <Clock className="h-8 w-8 text-slate-700 mb-2" />
@@ -202,40 +202,59 @@ export default function NotificationEvents({ logs, onLoadLogIntoSimulator, onCle
             <div
               key={evt.eventId}
               onClick={() => setInspectModalLog(evt.rawLog)}
-              className="group bg-slate-950/60 hover:bg-slate-850/80 border border-slate-850/80 hover:border-slate-750 rounded-lg px-3 py-2 text-xs font-mono transition cursor-pointer flex items-center justify-between gap-2 overflow-hidden"
+              className="group bg-slate-950/70 hover:bg-slate-850/90 border border-slate-850 hover:border-slate-750 rounded-xl p-3 text-xs font-mono transition cursor-pointer flex flex-col gap-2 shadow-sm"
               title="Click to view full event JSON payload"
             >
-              {/* One line content containing VIN, UserID, Event Step & Summary */}
-              <div className="flex items-center space-x-2.5 min-w-0 flex-1 truncate">
-                {/* Time */}
-                <span className="text-[10px] text-slate-500 shrink-0">
-                  {new Date(evt.timestamp).toLocaleTimeString()}
-                </span>
+              {/* Top Row: Metadata Badges & Status */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-850/60 pb-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Step Badge */}
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950/80 text-indigo-300 border border-indigo-800/60">
+                    STEP {evt.stepNumber}: {evt.stepName.toUpperCase()}
+                  </span>
 
-                {/* VIN Badge */}
-                <span className="inline-flex items-center space-x-1 font-bold text-slate-300 bg-slate-900 border border-slate-800 px-1.5 py-0.5 rounded text-[10px] shrink-0">
-                  <Car className="h-2.5 w-2.5 text-indigo-400" />
-                  <span>{evt.vin.length > 10 ? `${evt.vin.substring(0, 8)}...` : evt.vin}</span>
-                </span>
+                  {/* Time */}
+                  <span className="inline-flex items-center text-[10px] text-slate-400 font-mono">
+                    <Clock className="h-3 w-3 mr-1 text-slate-500" />
+                    {new Date(evt.timestamp).toLocaleTimeString()}
+                  </span>
 
-                {/* UserID Badge */}
-                <span className="inline-flex items-center space-x-1 font-bold text-slate-400 bg-slate-900 border border-slate-800 px-1.5 py-0.5 rounded text-[10px] shrink-0">
-                  <User className="h-2.5 w-2.5 text-slate-500" />
-                  <span>{evt.userId}</span>
-                </span>
+                  {/* VIN Badge */}
+                  <span className="inline-flex items-center space-x-1 font-bold text-slate-200 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded text-[10px]">
+                    <Car className="h-3 w-3 text-indigo-400" />
+                    <span>{evt.vin}</span>
+                  </span>
 
-                {/* Step # + Content summary in a single clean line */}
-                <span className="text-slate-300 text-xs truncate font-sans">
-                  <strong className="text-indigo-400 font-mono mr-1.5 font-semibold">
-                    [{evt.stepNumber}. {evt.stepName}]
-                  </strong>
-                  <span>{evt.summary}</span>
-                </span>
+                  {/* UserID Badge */}
+                  <span className="inline-flex items-center space-x-1 font-bold text-slate-300 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded text-[10px]">
+                    <User className="h-3 w-3 text-slate-400" />
+                    <span>{evt.userId}</span>
+                  </span>
+
+                  {/* Command ID Badge */}
+                  {evt.commandId && (
+                    <span className="text-[10px] font-mono text-slate-400">
+                      CMD: <span className="text-slate-200">{evt.commandId}</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Status Label Badge */}
+                <div className="shrink-0">
+                  {getStatusBadge(evt.status)}
+                </div>
               </div>
 
-              {/* Status Label Badge */}
-              <div className="shrink-0 flex items-center space-x-2">
-                {getStatusBadge(evt.status)}
+              {/* Multiline Content / Summary */}
+              <div className="space-y-1">
+                {evt.title && (
+                  <div className="text-xs font-bold text-slate-100 font-sans">
+                    {evt.title}
+                  </div>
+                )}
+                <p className="text-xs text-slate-300 font-sans leading-relaxed break-words whitespace-pre-wrap">
+                  {evt.summary}
+                </p>
               </div>
             </div>
           ))

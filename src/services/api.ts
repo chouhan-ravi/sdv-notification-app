@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { API_BASE_URL } from '../constants/apiEndpoints';
+import { API_BASE_URL, SERVICE_ENDPOINTS } from '../constants/apiEndpoints';
 
 export interface HttpLog {
   id: string;
@@ -241,44 +241,44 @@ class ApiService {
   }
 
   public async evaluateRules(notificationEvent: any): Promise<any> {
-    return this.post(API_ENDPOINTS.RULES_MATRIX.EVALUATE, { notificationEvent });
+    return this.post(`${SERVICE_ENDPOINTS.RULE_SERVICE}/rules/evaluate`, { notificationEvent });
   }
 
   // Rules Matrix API Services
   public async fetchRules(): Promise<any> {
-    return this.get(API_ENDPOINTS.RULES_MATRIX.GET_ALL_RULES);
+    return this.get(`${SERVICE_ENDPOINTS.RULE_SERVICE}/rules`);
   }
 
   public async saveRule(rule: any): Promise<any> {
     return rule.id
-      ? this.put(API_ENDPOINTS.RULES_MATRIX.UPDATE_RULE(rule.id), rule)
-      : this.post(API_ENDPOINTS.RULES_MATRIX.CREATE_RULE, rule);
+      ? this.put(`${SERVICE_ENDPOINTS.RULE_SERVICE}/rules/${rule.id}`, rule)
+      : this.post(`${SERVICE_ENDPOINTS.RULE_SERVICE}/rules`, rule);
   }
 
   public async deleteRule(id: string): Promise<any> {
-    return this.delete(API_ENDPOINTS.RULES_MATRIX.DELETE_RULE(id));
+    return this.delete(`${SERVICE_ENDPOINTS.RULE_SERVICE}/rules/${id}`);
   }
 
   public async recacheRules(): Promise<any> {
-    return this.post(API_ENDPOINTS.RULES_MATRIX.RECACHE_MATRIX, {});
+    return this.post(`${SERVICE_ENDPOINTS.RULE_SERVICE}/rules/re-cache`, {});
   }
 
   // Notification Category API Services
   public async fetchCategories(): Promise<any> {
-    return this.get(API_ENDPOINTS.NOTIFICATION_CATEGORY.GET_CATEGORIES);
+    return this.get(`${SERVICE_ENDPOINTS.RULE_SERVICE}/categories`);
   }
 
   public async fetchRuleKeys(): Promise<any> {
-    return this.get(API_ENDPOINTS.NOTIFICATION_CATEGORY.GET_RULE_KEYS);
+    return this.get(`${SERVICE_ENDPOINTS.RULE_SERVICE}/rule-keys`);
   }
 
   // Scheduler & Proactive Notification API Services
   public async fetchSchedulers(): Promise<any> {
-    return this.get(API_ENDPOINTS.SCHEDULER_PROACTIVE.GET_SCHEDULERS);
+    return this.get(`${SERVICE_ENDPOINTS.RULE_SERVICE}/schedulers`);
   }
 
   public async triggerProactiveNotification(schedulerId: string): Promise<any> {
-    return this.post(API_ENDPOINTS.SCHEDULER_PROACTIVE.TRIGGER_PROACTIVE_DISPATCH(schedulerId), {});
+    return this.post(`${SERVICE_ENDPOINTS.RULE_SERVICE}/schedulers/${schedulerId}/trigger`, {});
   }
 }
 

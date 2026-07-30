@@ -11,5 +11,5 @@ export const API_BASE_URL = 'http://localhost:3000';
 const API_PATH = '/api/v1';
 
 export const SERVICE_ENDPOINTS = {
-  RULE_SERVICE: `/rule-engine-service/${API_PATH}`
+  RULE_SERVICE: `/rule-engine-service${API_PATH}`
 } as const;
