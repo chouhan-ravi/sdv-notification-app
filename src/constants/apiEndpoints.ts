@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export const API_BASE_URL = '';
+export const API_BASE_URL = 'http://localhost:8080';
 
 /**
  * Central API Endpoints Registry for SDV Connected Gateway Services

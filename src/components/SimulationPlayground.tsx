@@ -418,7 +418,7 @@ export default function Simulator({
               Rule Evaluation API Ready
             </h4>
             <p className="text-slate-500 text-xs font-sans mt-1 max-w-sm mx-auto">
-              Click <strong>"CALL RULE EVALUATE API"</strong> on the left to send the notificationEvent payload to the backend REST API <code>POST /api/rules/evaluate</code> and bind the response JSON in the frontend UI.
+              Click <strong>"CALL RULE EVALUATE API"</strong> on the left to send the notificationEvent payload to the backend REST API <code>POST /api/v1/rules/evaluate</code> and bind the response JSON in the frontend UI.
             </p>
           </div>
         ) : (

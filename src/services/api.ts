@@ -241,7 +241,7 @@ class ApiService {
   }
 
   public async evaluateRules(notificationEvent: any): Promise<any> {
-    return this.post(`${SERVICE_ENDPOINTS.RULE_SERVICE}/rules/evaluate`, { notificationEvent });
+    return this.post(`${SERVICE_ENDPOINTS.RULE_SERVICE}/rules/evaluate`, notificationEvent);
   }
 
   // Rules Matrix API Services
