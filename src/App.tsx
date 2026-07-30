@@ -395,7 +395,7 @@ export default function App() {
       ...rule,
       id: 'rule_' + Math.random().toString(36).substring(2, 9),
       name: `${rule.name} (Copy)`,
-      ruleKey: `${rule.ruleKey}_COPY`,
+      notificationKey: `${rule.notificationKey || (rule as any).ruleKey}_COPY`,
       enabled: true
     };
     
@@ -518,7 +518,7 @@ export default function App() {
     const updated = categories.filter(c => c.key !== key);
     saveCategoriesToLocalStorage(updated);
     // Unassign or delete orphaned rule keys
-    const updatedRuleKeys = ruleKeys.filter(rk => rk.categoryKey !== key);
+    const updatedRuleKeys = ruleKeys.filter(rk => (rk.notificationCategory || (rk as any).categoryKey) !== key);
     saveRuleKeysToLocalStorage(updatedRuleKeys);
   };
 
@@ -598,7 +598,7 @@ export default function App() {
   // Load a historic log back into the active simulator panel
   const handleLoadLog = (log: SimulationLog) => {
     setActiveScreen('simulator');
-    setActiveRuleKeyFilter(log.matchedRules[0]?.ruleKey || 'NONE');
+    setActiveRuleKeyFilter(log.matchedRules[0]?.notificationKey || (log.matchedRules[0] as any)?.ruleKey || 'NONE');
     triggerToast(`Loaded simulation event for VIN: ${log.vin}`);
     setTimeout(() => setActiveRuleKeyFilter(null), 50);
   };
@@ -648,7 +648,7 @@ export default function App() {
     reader.onload = (event) => {
       try {
         const parsed = JSON.parse(event.target?.result as string);
-        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].ruleKey && parsed[0].conditions) {
+        if (Array.isArray(parsed) && parsed.length > 0 && (parsed[0].notificationKey || parsed[0].ruleKey) && parsed[0].conditions) {
           saveRulesToLocalStorage(parsed);
           triggerToast(`Successfully imported ${parsed.length} rules!`);
         } else {
@@ -663,9 +663,10 @@ export default function App() {
   };
 
   const handleSelectRuleForTesting = (rule: Rule) => {
+    const nk = rule.notificationKey || (rule as any).ruleKey;
     setActiveScreen('simulator');
-    setActiveRuleKeyFilter(rule.ruleKey);
-    triggerToast(`Testing rule: ${rule.ruleKey}`);
+    setActiveRuleKeyFilter(nk);
+    triggerToast(`Testing rule: ${nk}`);
     setTimeout(() => setActiveRuleKeyFilter(null), 50);
   };
 

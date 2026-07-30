@@ -190,7 +190,7 @@ export default function AfterSalesMaintenance({
           {
             ruleId: sch.id,
             ruleName: sch.name,
-            ruleKey: `PROACTIVE_${record.serviceType.replace(/\s+/g, '_').toUpperCase()}`,
+            notificationKey: `PROACTIVE_${record.serviceType.replace(/\s+/g, '_').toUpperCase()}`,
             criticality: 'MAJOR',
             priority: 'high',
             conditionEvaluations: [
@@ -212,7 +212,7 @@ export default function AfterSalesMaintenance({
             sound: 'ringtone_proactive_alert.mp3'
           },
           data: {
-            category: sch.categoryKey,
+            category: sch.notificationCategory || (sch as any).categoryKey,
             vin: record.vin,
             record_id: record.id,
             action_url: '/after-sales/maintenance'

@@ -94,7 +94,7 @@ export default function AuditLog({ logs, onLoadLogIntoSimulator, onClearLogs, ws
                   <div className="text-[11px] text-slate-300 font-sans">
                     {log.success && matchedRule ? (
                       <span className="text-slate-200">
-                        Rule Match: <strong className="text-emerald-400 font-mono text-[10px]">{matchedRule.ruleKey}</strong>
+                        Rule Match: <strong className="text-emerald-400 font-mono text-[10px]">{matchedRule.notificationKey}</strong>
                       </span>
                     ) : (
                       <span className="text-slate-500 italic">No rules matched for Command {log.commandId}</span>

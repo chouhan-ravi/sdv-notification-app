@@ -14,6 +14,7 @@ interface RuleFormModalProps {
   ruleToEdit: Rule | null;
   categories?: DynamicCategory[];
   ruleKeys?: DynamicRuleKey[];
+  notificationKeys?: DynamicRuleKey[];
 }
 
 export default function RuleFormModal({
@@ -22,8 +23,10 @@ export default function RuleFormModal({
   onSave,
   ruleToEdit,
   categories = [],
-  ruleKeys = []
+  ruleKeys = [],
+  notificationKeys
 }: RuleFormModalProps) {
+  const activeKeys = notificationKeys || ruleKeys;
   const [ruleId, setRuleId] = useState('');
   const [name, setName] = useState('');
   const [enabled, setEnabled] = useState(true);
@@ -46,8 +49,8 @@ export default function RuleFormModal({
         // Fallback default config if rule configs list is unpopulated
         setConfigs([{
           id: `cfg_${Math.random().toString(36).substring(2, 9)}`,
-          notificationCategory: ruleToEdit.categoryKey || 'vehicle.remote.control',
-          notificationKey: ruleToEdit.ruleKey || 'vehicle.remote.event',
+          notificationCategory: ruleToEdit.notificationCategory || (ruleToEdit as any).categoryKey || 'vehicle.remote.control',
+          notificationKey: ruleToEdit.notificationKey || (ruleToEdit as any).ruleKey || 'vehicle.remote.event',
           criticality: ruleToEdit.criticality || 'INFO',
           conditions: [{
             and: (ruleToEdit.conditions || []).map(c => ({
@@ -68,41 +71,33 @@ export default function RuleFormModal({
       }
       setErrors([]);
     } else {
-      // Create new rule defaults
-      setRuleId(`RULE_${Math.random().toString(36).substring(2, 7).toUpperCase()}`);
+      // Create new rule defaults with clean empty fields and placeholders
+      setRuleId('');
       setName('');
       setEnabled(true);
       setDescription('');
       setConfigs([
         {
           id: `cfg_${Math.random().toString(36).substring(2, 8)}`,
-          notificationCategory: 'milon.burglar.category',
-          notificationKey: 'milon.burgluer',
+          notificationCategory: '',
+          notificationKey: '',
           criticality: 'INFO',
           conditions: [
             {
               and: [
                 {
                   id: `c_${Math.random().toString(36).substring(2, 8)}`,
-                  fieldPath: 'execution_status',
+                  fieldPath: '',
                   operator: 'equals',
-                  value: 'SUCCESS'
-                },
-                {
-                  id: `c_${Math.random().toString(36).substring(2, 8)}`,
-                  fieldPath: 'vehicle_state_snapshot.telemetry.12v_battery_v',
-                  operator: 'less_than',
-                  value: '11.8'
+                  value: ''
                 }
               ]
             }
           ],
-          metadata: [
-            { key: 'engine_state', value: '{vehicle_state_snapshot.engine_state}' }
-          ],
+          metadata: [],
           notificationTemplate: {
-            title: 'Circuit Milestone Achieved! 🎉',
-            body: "Excellent work! You completed the circuit and hit a new personal record.",
+            title: '',
+            body: '',
             sound: 'default',
             badge: 1
           }
@@ -117,25 +112,25 @@ export default function RuleFormModal({
   const addConfig = () => {
     const newCfg: RuleConfigItem = {
       id: `cfg_${Math.random().toString(36).substring(2, 8)}`,
-      notificationCategory: 'milon.burglar.category',
-      notificationKey: 'milon.burgluer',
+      notificationCategory: '',
+      notificationKey: '',
       criticality: 'INFO',
       conditions: [
         {
           and: [
             {
               id: `c_${Math.random().toString(36).substring(2, 8)}`,
-              fieldPath: 'execution_status',
+              fieldPath: '',
               operator: 'equals',
-              value: 'SUCCESS'
+              value: ''
             }
           ]
         }
       ],
       metadata: [],
       notificationTemplate: {
-        title: 'New Notification Title',
-        body: 'New notification body text',
+        title: '',
+        body: '',
         sound: 'default',
         badge: 1
       }
@@ -163,9 +158,9 @@ export default function RuleFormModal({
     const group = cfg.conditions[0];
     const newCond: RuleConditionItem = {
       id: `c_${Math.random().toString(36).substring(2, 8)}`,
-      fieldPath: 'execution_status',
+      fieldPath: '',
       operator: 'equals',
-      value: 'SUCCESS'
+      value: ''
     };
     if (group.and) {
       group.and.push(newCond);
@@ -218,7 +213,7 @@ export default function RuleFormModal({
 
   const validateForm = () => {
     const errs: string[] = [];
-    if (!ruleId.trim()) errs.push('Rule ID is required');
+    if (ruleToEdit && !ruleId.trim()) errs.push('Rule ID is required');
     if (!name.trim()) errs.push('Rule Name is required');
     if (configs.length === 0) errs.push('At least one config item is required');
 
@@ -238,8 +233,10 @@ export default function RuleFormModal({
     e.preventDefault();
     if (!validateForm()) return;
 
+    const finalRuleId = ruleId.trim() || `RULE_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+
     const savedRule: Rule = {
-      id: ruleId.trim(),
+      id: finalRuleId,
       name: name.trim(),
       enabled,
       description: description.trim(),
@@ -297,12 +294,11 @@ export default function RuleFormModal({
                 <label className="block text-xs font-bold text-slate-400 font-mono mb-1.5">RULE ID</label>
                 <input
                   type="text"
-                  required
-                  placeholder="e.g. MILON_RULE"
+                  placeholder="e.g. RULE_BATTERY_LOW"
                   value={ruleId}
                   onChange={(e) => setRuleId(e.target.value.toUpperCase().replace(/\s+/g, '_'))}
                   disabled={!!ruleToEdit}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-slate-700 disabled:opacity-50"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono placeholder-slate-600 focus:outline-none focus:border-slate-700 disabled:opacity-50"
                 />
               </div>
 
@@ -311,7 +307,7 @@ export default function RuleFormModal({
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Milon Rule"
+                  placeholder="e.g. Battery Voltage Warning"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-slate-700"
@@ -334,7 +330,7 @@ export default function RuleFormModal({
             <div>
               <label className="block text-xs font-bold text-slate-400 font-mono mb-1.5">DESCRIPTION</label>
               <textarea
-                placeholder="Briefly describe what this rule evaluates or represents."
+                placeholder="e.g. Briefly describe what this vehicle rule evaluates or represents."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
@@ -383,9 +379,10 @@ export default function RuleFormModal({
                       <input
                         type="text"
                         required
+                        placeholder="e.g. cfg_01"
                         value={cfg.id}
                         onChange={(e) => updateConfigField(cfgIdx, { id: e.target.value })}
-                        className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono"
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono placeholder-slate-600"
                       />
                     </div>
 
@@ -394,10 +391,10 @@ export default function RuleFormModal({
                       <input
                         type="text"
                         required
-                        placeholder="e.g. milon.burglar.category"
+                        placeholder="e.g. vehicle.remote.control"
                         value={cfg.notificationCategory}
                         onChange={(e) => updateConfigField(cfgIdx, { notificationCategory: e.target.value })}
-                        className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono"
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono placeholder-slate-600"
                       />
                     </div>
 
@@ -406,10 +403,10 @@ export default function RuleFormModal({
                       <input
                         type="text"
                         required
-                        placeholder="e.g. milon.burgluer"
+                        placeholder="e.g. vehicle.remote.event"
                         value={cfg.notificationKey}
                         onChange={(e) => updateConfigField(cfgIdx, { notificationKey: e.target.value })}
-                        className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono text-emerald-400"
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono text-emerald-400 placeholder-slate-600"
                       />
                     </div>
 
@@ -501,22 +498,24 @@ export default function RuleFormModal({
                         <input
                           type="text"
                           required
+                          placeholder="e.g. Low Battery Voltage Warning"
                           value={cfg.notificationTemplate?.title || ''}
                           onChange={(e) => updateConfigField(cfgIdx, {
                             notificationTemplate: { ...cfg.notificationTemplate, title: e.target.value }
                           })}
-                          className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-sans"
+                          className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-sans placeholder-slate-600"
                         />
                       </div>
                       <div>
                         <label className="block text-[9px] font-mono text-slate-500 mb-1">SOUND</label>
                         <input
                           type="text"
+                          placeholder="e.g. default"
                           value={cfg.notificationTemplate?.sound || 'default'}
                           onChange={(e) => updateConfigField(cfgIdx, {
                             notificationTemplate: { ...cfg.notificationTemplate, sound: e.target.value }
                           })}
-                          className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono"
+                          className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono placeholder-slate-600"
                         />
                       </div>
                     </div>
@@ -525,11 +524,12 @@ export default function RuleFormModal({
                       <textarea
                         required
                         rows={2}
+                        placeholder="e.g. Vehicle battery dropped below critical threshold ({vehicle_state_snapshot.telemetry.12v_battery_v}V)."
                         value={cfg.notificationTemplate?.body || ''}
                         onChange={(e) => updateConfigField(cfgIdx, {
                           notificationTemplate: { ...cfg.notificationTemplate, body: e.target.value }
                         })}
-                        className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-sans"
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-sans placeholder-slate-600"
                       />
                     </div>
                   </div>

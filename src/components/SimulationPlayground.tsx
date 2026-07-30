@@ -32,7 +32,8 @@ interface SimulatorProps {
   businessFilters: BusinessFilter[];
   userSettings: CarOwnerSetting[];
   onAddLog: (log: SimulationLog) => void;
-  activeRuleKeyFilter?: string;
+  activeNotificationKeyFilter?: string;
+  activeRuleKeyFilter?: string; // backwards compatibility alias
 }
 
 export default function Simulator({ 
@@ -40,8 +41,10 @@ export default function Simulator({
   businessFilters, 
   userSettings, 
   onAddLog, 
+  activeNotificationKeyFilter,
   activeRuleKeyFilter 
 }: SimulatorProps) {
+  const effectiveKeyFilter = activeNotificationKeyFilter || activeRuleKeyFilter;
   const [selectedPresetIdx, setSelectedPresetIdx] = useState(0);
   const [rawJson, setRawJson] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
@@ -100,12 +103,12 @@ export default function Simulator({
   }, [selectedPresetIdx]);
 
   useEffect(() => {
-    if (activeRuleKeyFilter) {
+    if (effectiveKeyFilter) {
       const matchedIdx = SAMPLE_PAYLOADS.findIndex(p => {
-        if (activeRuleKeyFilter.includes('REM_START') && p.name.includes('Successful')) return true;
-        if (activeRuleKeyFilter.includes('SAFETY') && p.name.includes('Safety')) return true;
-        if (activeRuleKeyFilter.includes('BATTERY') && p.name.includes('Battery')) return true;
-        if (activeRuleKeyFilter.includes('INTRUSION') && p.name.includes('Theft')) return true;
+        if (effectiveKeyFilter.includes('REM_START') && p.name.includes('Successful')) return true;
+        if (effectiveKeyFilter.includes('SAFETY') && p.name.includes('Safety')) return true;
+        if (effectiveKeyFilter.includes('BATTERY') && p.name.includes('Battery')) return true;
+        if (effectiveKeyFilter.includes('INTRUSION') && p.name.includes('Theft')) return true;
         return false;
       });
 
@@ -113,7 +116,7 @@ export default function Simulator({
         setSelectedPresetIdx(matchedIdx);
       }
     }
-  }, [activeRuleKeyFilter]);
+  }, [effectiveKeyFilter]);
 
   const handleJsonChange = (val: string) => {
     setRawJson(val);

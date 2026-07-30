@@ -238,7 +238,7 @@ export function runRulesEvaluation(
     matchedRulesList.push({
       ruleId: res.ruleId,
       ruleName: res.ruleName,
-      ruleKey: res.matchedConfig.notificationKey,
+      notificationKey: res.matchedConfig.notificationKey,
       criticality: res.matchedConfig.criticality,
       priority: 'normal',
       conditionEvaluations: matchedConds

@@ -38,20 +38,25 @@ const SUPPORTED_LOCALES = [
 
 interface CategoryKeyManagerProps {
   categories: DynamicCategory[];
-  ruleKeys: DynamicRuleKey[];
+  ruleKeys?: DynamicRuleKey[];
+  notificationKeys?: DynamicRuleKey[];
   rules: Rule[];
   onAddCategory: (cat: DynamicCategory) => void;
   onUpdateCategory: (cat: DynamicCategory) => void;
   onDeleteCategory: (key: string) => void;
-  onAddRuleKey: (rk: DynamicRuleKey) => void;
-  onUpdateRuleKey: (rk: DynamicRuleKey) => void;
-  onDeleteRuleKey: (key: string) => void;
+  onAddRuleKey?: (rk: DynamicRuleKey) => void;
+  onUpdateRuleKey?: (rk: DynamicRuleKey) => void;
+  onDeleteRuleKey?: (key: string) => void;
+  onAddNotificationKey?: (nk: DynamicRuleKey) => void;
+  onUpdateNotificationKey?: (nk: DynamicRuleKey) => void;
+  onDeleteNotificationKey?: (key: string) => void;
   triggerToast: (msg: string) => void;
 }
 
 export default function CategoryKeyManager({
   categories,
-  ruleKeys,
+  ruleKeys = [],
+  notificationKeys,
   rules,
   onAddCategory,
   onUpdateCategory,
@@ -59,8 +64,15 @@ export default function CategoryKeyManager({
   onAddRuleKey,
   onUpdateRuleKey,
   onDeleteRuleKey,
+  onAddNotificationKey,
+  onUpdateNotificationKey,
+  onDeleteNotificationKey,
   triggerToast
 }: CategoryKeyManagerProps) {
+  const activeRuleKeys = notificationKeys || ruleKeys;
+  const handleAddKey = onAddNotificationKey || onAddRuleKey || (() => {});
+  const handleUpdateKey = onUpdateNotificationKey || onUpdateRuleKey || (() => {});
+  const handleDeleteKey = onDeleteNotificationKey || onDeleteRuleKey || (() => {});
   const [activeTab, setActiveTab] = useState<'visual' | 'categories' | 'rule_keys'>('visual');
   
   // NotificationCategory Form States
@@ -103,7 +115,7 @@ export default function CategoryKeyManager({
   // Helper: check if NotificationCategory is in use in rules matrix via RuleConfig or categoryKey
   const getRulesUsingCategory = (key: string): Rule[] => {
     return rules.filter(r => {
-      if (r.categoryKey === key) return true;
+      if (r.notificationCategory === key) return true;
       if (r.config && r.config.some(cfg => cfg.notificationCategory === key)) return true;
       return false;
     });
@@ -116,7 +128,7 @@ export default function CategoryKeyManager({
   // Helper: check if NotificationKey is in use in rules matrix via RuleConfig or ruleKey
   const getRulesUsingRuleKey = (key: string): Rule[] => {
     return rules.filter(r => {
-      if (r.ruleKey === key) return true;
+      if (r.notificationKey === key) return true;
       if (r.config && r.config.some(cfg => cfg.notificationKey === key)) return true;
       return false;
     });
@@ -254,13 +266,13 @@ export default function CategoryKeyManager({
       });
 
     if (rkIsEditing) {
-      const original = ruleKeys.find(r => r.key === rkIsEditing);
+      const original = activeRuleKeys.find(r => r.key === rkIsEditing);
       if (!original) return;
 
-      onUpdateRuleKey({
+      handleUpdateKey({
         key: rkIsEditing,
         name: rkName.trim(),
-        categoryKey: rkCategoryKey,
+        notificationCategory: rkCategoryKey,
         enabled: original.enabled,
         description: rkDesc.trim(),
         translations: translationsArray.length > 0 ? translationsArray : undefined
@@ -268,15 +280,15 @@ export default function CategoryKeyManager({
       triggerToast(`NotificationKey "${rkName}" updated successfully.`);
       setRkIsEditing(null);
     } else {
-      if (ruleKeys.some(r => r.key === formattedKey)) {
+      if (activeRuleKeys.some(r => r.key === formattedKey)) {
         triggerToast(`NotificationKey "${formattedKey}" already exists.`);
         return;
       }
 
-      onAddRuleKey({
+      handleAddKey({
         key: formattedKey,
         name: rkName.trim(),
-        categoryKey: rkCategoryKey,
+        notificationCategory: rkCategoryKey,
         enabled: true,
         description: rkDesc.trim(),
         translations: translationsArray.length > 0 ? translationsArray : undefined
@@ -342,7 +354,7 @@ export default function CategoryKeyManager({
     setRkIsEditing(rk.key);
     setRkKey(rk.key);
     setRkName(rk.name);
-    setRkCategoryKey(rk.categoryKey);
+    setRkCategoryKey(rk.notificationCategory || (rk as any).categoryKey);
     setRkDesc(rk.description || '');
 
     const initialTrans: Record<string, { name: string; description: string }> = {
@@ -386,7 +398,7 @@ export default function CategoryKeyManager({
       triggerToast(`Operation Blocked: NotificationKey "${rk.key}" is mapped in active RuleConfig rules.`);
       return;
     }
-    onUpdateRuleKey({
+    handleUpdateKey({
       ...rk,
       enabled: !rk.enabled
     });
@@ -411,13 +423,13 @@ export default function CategoryKeyManager({
       return;
     }
     if (confirm(`Are you sure you want to delete NotificationKey "${key}"?`)) {
-      onDeleteRuleKey(key);
+      handleDeleteKey(key);
     }
   };
 
   // Quick Move Category relation
   const handleQuickMove = (key: string, targetCat: string) => {
-    const rk = ruleKeys.find(r => r.key === key);
+    const rk = activeRuleKeys.find(r => r.key === key);
     if (!rk) return;
 
     if (isRuleKeyInUse(key)) {
@@ -426,9 +438,9 @@ export default function CategoryKeyManager({
       return;
     }
 
-    onUpdateRuleKey({
+    handleUpdateKey({
       ...rk,
-      categoryKey: targetCat
+      notificationCategory: targetCat
     });
     triggerToast(`Moved NotificationKey "${rk.name}" to NotificationCategory "${targetCat}".`);
     setQuickMoveRk(null);
@@ -441,12 +453,13 @@ export default function CategoryKeyManager({
     (c.description || '').toLowerCase().includes(catSearch.toLowerCase())
   );
 
-  const filteredRuleKeys = ruleKeys.filter(r => {
+  const filteredRuleKeys = activeRuleKeys.filter(r => {
     const matchesSearch = 
       r.key.toLowerCase().includes(rkSearch.toLowerCase()) ||
       r.name.toLowerCase().includes(rkSearch.toLowerCase()) ||
       (r.description || '').toLowerCase().includes(rkSearch.toLowerCase());
-    const matchesCategory = rkCategoryFilter === 'ALL' || r.categoryKey === rkCategoryFilter;
+    const rkCat = r.notificationCategory || (r as any).categoryKey;
+    const matchesCategory = rkCategoryFilter === 'ALL' || rkCat === rkCategoryFilter;
     return matchesSearch && matchesCategory;
   });
 
@@ -502,7 +515,7 @@ export default function CategoryKeyManager({
               }`}
             >
               <Key className="h-4 w-4" />
-              <span>NotificationKey ({ruleKeys.length})</span>
+              <span>NotificationKey ({activeRuleKeys.length})</span>
             </button>
           </div>
         </div>
@@ -552,7 +565,7 @@ export default function CategoryKeyManager({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {categories.map((cat) => {
                 const isCatLocked = isCategoryInUse(cat.key);
-                const relatedKeys = ruleKeys.filter(rk => rk.categoryKey === cat.key);
+                const relatedKeys = activeRuleKeys.filter(rk => (rk.notificationCategory || (rk as any).categoryKey) === cat.key);
                 const mappedRuleConfigs = getRuleConfigsForCategory(cat.key);
 
                 return (
@@ -685,7 +698,7 @@ export default function CategoryKeyManager({
                                             setRkIsEditing(rk.key);
                                             setRkKey(rk.key);
                                             setRkName(rk.name);
-                                            setRkCategoryKey(rk.categoryKey);
+                                            setRkCategoryKey(rk.notificationCategory || (rk as any).categoryKey);
                                             setRkDesc(rk.description || '');
                                             setActiveTab('rule_keys');
                                             setShowRkForm(true);
@@ -1246,7 +1259,8 @@ export default function CategoryKeyManager({
                   ) : (
                     filteredRuleKeys.map((rk) => {
                       const isLocked = isRuleKeyInUse(rk.key);
-                      const parentCat = categories.find(c => c.key === rk.categoryKey);
+                      const rkCat = rk.notificationCategory || (rk as any).categoryKey;
+                      const parentCat = categories.find(c => c.key === rkCat);
                       const mappedConfigs = getRuleConfigsForKey(rk.key);
 
                       return (
@@ -1266,10 +1280,10 @@ export default function CategoryKeyManager({
                           <td className="p-4">
                             {parentCat ? (
                               <span className="font-mono text-xs font-bold text-amber-300 bg-amber-950/40 border border-amber-900/40 px-2.5 py-1 rounded-md inline-block">
-                                {rk.categoryKey}
+                                {rkCat}
                               </span>
                             ) : (
-                              <span className="text-xs text-rose-400 font-mono italic">⚠️ BROKEN ({rk.categoryKey})</span>
+                              <span className="text-xs text-rose-400 font-mono italic">⚠️ BROKEN ({rkCat})</span>
                             )}
                           </td>
 

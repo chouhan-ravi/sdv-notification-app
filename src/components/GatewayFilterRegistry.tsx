@@ -92,8 +92,8 @@ export default function NotificationSettings({
       id: `bf_${Math.random().toString(36).substring(2, 9)}`,
       name: bfName,
       description: bfDesc || 'Custom corporate suppression policy.',
-      categoryKey: bfCategory,
-      ruleKey: bfRuleKey,
+      notificationCategory: bfCategory,
+      notificationKey: bfRuleKey,
       cssGen: bfCssGen,
       vehicleModel: bfModel,
       yearStart: Number(bfYearStart),
@@ -123,8 +123,8 @@ export default function NotificationSettings({
       id: `cos_${Math.random().toString(36).substring(2, 9)}`,
       userId: cosUserId.trim(),
       vin: cosVin.trim().toUpperCase(),
-      categoryKey: cosCategory,
-      ruleKey: cosRuleKey,
+      notificationCategory: cosCategory,
+      notificationKey: cosRuleKey,
       enabled: cosEnabled
     };
 
@@ -140,14 +140,14 @@ export default function NotificationSettings({
   // Filter lists based on query
   const filteredBF = businessFilters.filter(f => 
     f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    f.categoryKey.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (f.notificationCategory || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     f.region.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredCOS = userSettings.filter(s => 
     s.userId.toLowerCase().includes(searchQuery.toLowerCase()) ||
     s.vin.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.categoryKey.toLowerCase().includes(searchQuery.toLowerCase())
+    (s.notificationCategory || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -250,7 +250,7 @@ export default function NotificationSettings({
             ) : (
               <div className="grid grid-cols-1 gap-4">
                 {filteredBF.map((filter) => {
-                  const cat = CATEGORIES.find(c => c.key === filter.categoryKey);
+                  const cat = CATEGORIES.find(c => c.key === filter.notificationCategory);
                   return (
                     <div 
                       key={filter.id}
@@ -273,10 +273,10 @@ export default function NotificationSettings({
                           <p className="text-xs text-slate-400 leading-relaxed font-sans mt-1">
                             {filter.description}
                           </p>
-                          {filter.ruleKey && filter.ruleKey !== 'All' && (
+                          {filter.notificationKey && filter.notificationKey !== 'All' && (
                             <div className="mt-2 inline-flex items-center space-x-1 text-[10px] text-amber-400 font-mono font-medium bg-amber-950/40 border border-amber-900/30 px-2.5 py-0.5 rounded-lg">
                               <Key className="h-3 w-3 text-amber-400" />
-                              <span>Muted Rule Key: {filter.ruleKey}</span>
+                              <span>Muted Notification Key: {filter.notificationKey}</span>
                             </div>
                           )}
                         </div>
@@ -307,9 +307,9 @@ export default function NotificationSettings({
 
                       {/* Criteria Tags Grid */}
                       <div className="mt-3 pt-3 border-t border-slate-850/60 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] font-mono text-slate-400">
-                        <div className="bg-slate-950/60 p-1.5 rounded border border-slate-850 truncate" title={cat?.name || filter.categoryKey}>
-                          <span className="text-slate-600 font-bold block uppercase text-[8px]">Category Key</span>
-                          <span className="text-indigo-400 font-medium">{filter.categoryKey}</span>
+                        <div className="bg-slate-950/60 p-1.5 rounded border border-slate-850 truncate" title={cat?.name || filter.notificationCategory}>
+                          <span className="text-slate-600 font-bold block uppercase text-[8px]">Notification Category</span>
+                          <span className="text-indigo-400 font-medium">{filter.notificationCategory}</span>
                         </div>
                         
                         <div className="bg-slate-950/60 p-1.5 rounded border border-slate-850">
@@ -430,29 +430,29 @@ export default function NotificationSettings({
 
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase font-mono mb-1">
-                      Rule Key Restriction
+                      Notification Key Restriction
                     </label>
                     <select
                       value={bfRuleKey}
                       onChange={(e) => setBfRuleKey(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-850 rounded-lg px-2.5 py-2 text-slate-300 focus:outline-none font-sans font-mono text-[11px]"
                     >
-                      <option value="All">All Rules {bfCategory !== 'All' ? 'in Category' : 'Globally'}</option>
+                      <option value="All">All Keys {bfCategory !== 'All' ? 'in Category' : 'Globally'}</option>
                       {Array.from(new Set(
                         bfCategory === 'All' 
-                          ? rules.map(r => r.ruleKey)
-                          : rules.filter(r => r.categoryKey === bfCategory).map(r => r.ruleKey)
-                      )).map((ruleKey) => {
-                        const matchedRule = rules.find(r => r.ruleKey === ruleKey);
+                          ? rules.map(r => r.notificationKey || r.config[0]?.notificationKey)
+                          : rules.filter(r => (r.notificationCategory || r.config[0]?.notificationCategory) === bfCategory).map(r => r.notificationKey || r.config[0]?.notificationKey)
+                      )).filter(Boolean).map((nk) => {
+                        const matchedRule = rules.find(r => (r.notificationKey || r.config[0]?.notificationKey) === nk);
                         return (
-                          <option key={ruleKey} value={ruleKey}>
-                            🔑 {ruleKey} ({matchedRule?.name || ''})
+                          <option key={nk} value={nk}>
+                            🔑 {nk} ({matchedRule?.name || ''})
                           </option>
                         );
                       })}
                     </select>
                     <p className="text-[9px] text-slate-500 mt-1 italic font-sans">
-                      Select a precise Rule Key to apply the corporate block to, or choose "All Rules" for full-category suppression.
+                      Select a precise Notification Key to apply the corporate block to, or choose "All Rules" for full-category suppression.
                     </p>
                   </div>
 
@@ -600,7 +600,7 @@ export default function NotificationSettings({
             ) : (
               <div className="grid grid-cols-1 gap-3">
                 {filteredCOS.map((setting) => {
-                  const cat = CATEGORIES.find(c => c.key === setting.categoryKey);
+                  const cat = CATEGORIES.find(c => c.key === setting.notificationCategory);
                   return (
                     <div 
                       key={setting.id}
@@ -618,12 +618,12 @@ export default function NotificationSettings({
                         
                         <div className="text-xs font-sans text-slate-400 space-y-1">
                           <div>
-                            Suppressing Category: <span className="font-bold text-slate-300 font-mono text-[10.5px]">{setting.categoryKey}</span> ({setting.categoryKey === 'All' ? 'All Categories' : (cat?.name.split(' ').slice(1).join(' ') || 'Custom')})
+                            Suppressing Category: <span className="font-bold text-slate-300 font-mono text-[10.5px]">{setting.notificationCategory}</span> ({setting.notificationCategory === 'All' ? 'All Categories' : (cat?.name.split(' ').slice(1).join(' ') || 'Custom')})
                           </div>
-                          {setting.ruleKey && setting.ruleKey !== 'All' && (
+                          {setting.notificationKey && setting.notificationKey !== 'All' && (
                             <div className="inline-flex items-center space-x-1 text-[11px] text-indigo-400 font-mono font-medium bg-indigo-950/40 border border-indigo-900/30 px-2 py-0.5 rounded-lg">
                               <Key className="h-3 w-3 text-indigo-400" />
-                              <span>Specific Rule Key: {setting.ruleKey}</span>
+                              <span>Specific Notification Key: {setting.notificationKey}</span>
                             </div>
                           )}
                         </div>
@@ -745,37 +745,37 @@ export default function NotificationSettings({
 
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase font-mono mb-1">
-                      Target Specific Rule Key (Optional)
+                      Target Specific Notification Key (Optional)
                     </label>
                     <select
                       value={cosRuleKey}
                       onChange={(e) => setCosRuleKey(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-850 rounded-lg px-2.5 py-2 text-slate-300 focus:outline-none font-sans"
                     >
-                      <option value="All">All Rules {cosCategory !== 'All' ? 'in Category' : 'Globally'}</option>
+                      <option value="All">All Notification Keys {cosCategory !== 'All' ? 'in Category' : 'Globally'}</option>
                       {Array.from(new Set(
                         cosCategory === 'All' 
-                          ? rules.map(r => r.ruleKey)
-                          : rules.filter(r => r.categoryKey === cosCategory).map(r => r.ruleKey)
-                      )).map((ruleKey) => {
-                        const matchedRule = rules.find(r => r.ruleKey === ruleKey);
+                          ? rules.map(r => r.notificationKey || r.config[0]?.notificationKey)
+                          : rules.filter(r => (r.notificationCategory || r.config[0]?.notificationCategory) === cosCategory).map(r => r.notificationKey || r.config[0]?.notificationKey)
+                      )).filter(Boolean).map((nk) => {
+                        const matchedRule = rules.find(r => (r.notificationKey || r.config[0]?.notificationKey) === nk);
                         const relatedCategories = Array.from(new Set(
-                          rules.filter(r => r.ruleKey === ruleKey).map(r => {
-                            const foundCat = activeCategories.find(c => c.key === r.categoryKey);
+                          rules.filter(r => (r.notificationKey || r.config[0]?.notificationKey) === nk).map(r => {
+                            const foundCat = activeCategories.find(c => c.key === (r.notificationCategory || r.config[0]?.notificationCategory));
                             return foundCat 
                               ? (foundCat.name.includes(' ') ? foundCat.name.split(' ').slice(1).join(' ') : foundCat.name) 
-                              : r.categoryKey;
+                              : (r.notificationCategory || r.config[0]?.notificationCategory);
                           })
                         ));
                         return (
-                          <option key={ruleKey} value={ruleKey}>
-                            🔑 {ruleKey} ({matchedRule?.name || ''}) — Related to: {relatedCategories.join(', ')}
+                          <option key={nk} value={nk}>
+                            🔑 {nk} ({matchedRule?.name || ''}) — Related to: {relatedCategories.join(', ')}
                           </option>
                         );
                       })}
                     </select>
                     <p className="text-[9px] text-slate-500 mt-1 italic font-sans">
-                      Select a precise Rule Key to block, or choose "All Rules" for full channel muting. If you mute a Rule Key associated with multiple categories, it will block alerts across those categories.
+                      Select a precise Notification Key to block, or choose "All Rules" for full channel muting.
                     </p>
                   </div>
 

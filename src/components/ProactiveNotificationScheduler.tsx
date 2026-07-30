@@ -234,7 +234,7 @@ export default function SchedulerConfig({
       setLinkedRuleId(scheduler.linkedRuleId);
     } else if (rules.length > 0) {
       // Graceful fallback: try finding rule with matching template or category/key
-      const found = rules.find(r => r.ruleKey === scheduler.categoryKey);
+      const found = rules.find(r => (r.notificationKey || r.config[0]?.notificationKey) === scheduler.notificationCategory);
       setLinkedRuleId(found ? found.id : rules[0].id);
     }
 
@@ -264,7 +264,7 @@ export default function SchedulerConfig({
       }
       resolvedTitle = selectedRule.notificationTitle;
       resolvedBody = selectedRule.notificationBody;
-      resolvedCategory = selectedRule.categoryKey;
+      resolvedCategory = selectedRule.notificationCategory || selectedRule.config[0]?.notificationCategory || 'All';
     } else {
       const selectedTask = SYSTEM_BACKEND_TASKS.find(t => t.key === systemTaskKey);
       resolvedTitle = `⚙️ SYSTEM CRON: ${selectedTask?.name || 'Task'}`;
@@ -280,7 +280,7 @@ export default function SchedulerConfig({
       serviceType: schedulerType === 'system_task' ? 'All' : serviceType,
       templateTitle: resolvedTitle,
       templateBody: resolvedBody,
-      categoryKey: resolvedCategory,
+      notificationCategory: resolvedCategory,
       enabled,
       createdDate: editingId ? (schedulers.find(s => s.id === editingId)?.createdDate || '2026-07-17') : '2026-07-17',
       lastExecutedAt: editingId ? schedulers.find(s => s.id === editingId)?.lastExecutedAt : undefined,
@@ -369,7 +369,7 @@ export default function SchedulerConfig({
     setExecutionInterpolatedNotification(null);
     setMockSelectedRecord(null);
 
-    if (sch.type === 'system_task' || !sch.type && sch.categoryKey === 'SYSTEM_CRON') {
+    if (sch.type === 'system_task' || (!sch.type && sch.notificationCategory === 'SYSTEM_CRON')) {
       // Simulate system backend CRON task
       const task = SYSTEM_BACKEND_TASKS.find(t => t.key === sch.systemTaskKey) || SYSTEM_BACKEND_TASKS[0];
       let lineIndex = 0;
@@ -398,7 +398,9 @@ export default function SchedulerConfig({
     } else {
       // Simulate high-fidelity Notification Flow trigger
       // 1. Identify linked rule
-      const linkedRule = rules.find(r => r.id === sch.linkedRuleId) || rules.find(r => r.ruleKey === sch.categoryKey) || rules[0];
+      const linkedRule = rules.find(r => r.id === sch.linkedRuleId) || rules.find(r => (r.notificationKey || r.config[0]?.notificationKey) === sch.notificationCategory) || rules[0];
+      const activeRuleKey = linkedRule.notificationKey || linkedRule.config[0]?.notificationKey || linkedRule.id;
+      const activeCategoryKey = linkedRule.notificationCategory || linkedRule.config[0]?.notificationCategory || 'ALL';
       
       // 2. Identify matching maintenance record, or fallback to synthetic mock
       const matchedRecords = afterSalesRecords.filter(rec => {
@@ -424,7 +426,7 @@ export default function SchedulerConfig({
         `[INGRESS] Outbound scheduler heartbeat triggered. Event Name: "${sch.name}"`,
         `[INGRESS] Context loaded: Vehicle Model: ${selectedRecord.vehicleModel} | VIN: ${selectedRecord.vin}`,
         `[INGRESS] Linked Service: ${selectedRecord.serviceType} | Current Mileage: ${selectedRecord.mileage.toLocaleString()} miles`,
-        `[COMPILER] Loading active Rule AST profile ID: ${linkedRule.id} (Key: ${linkedRule.ruleKey})`,
+        `[COMPILER] Loading active Rule AST profile ID: ${linkedRule.id} (Key: ${activeRuleKey})`,
         `[COMPILER] Interpolating notification token templates using vehicle parameters...`
       ];
       setExecutionLogLines(initialLogs);
@@ -459,15 +461,15 @@ export default function SchedulerConfig({
         const blockFilter = businessFilters.find(f => 
           f.enabled && 
           f.action === 'BLOCK' && 
-          (f.categoryKey === 'All' || f.categoryKey === linkedRule.categoryKey) &&
-          (f.ruleKey === 'All' || !f.ruleKey || f.ruleKey === linkedRule.ruleKey) &&
+          (f.notificationCategory === 'All' || f.notificationCategory === activeCategoryKey) &&
+          (f.notificationKey === 'All' || !f.notificationKey || f.notificationKey === activeRuleKey) &&
           (f.vehicleModel === 'All' || f.vehicleModel.toLowerCase() === selectedRecord.vehicleModel.toLowerCase())
         );
 
         const userMute = userSettings.find(s => 
           !s.enabled && 
           s.vin === selectedRecord.vin && 
-          (s.categoryKey === linkedRule.categoryKey || s.categoryKey === 'All')
+          (s.notificationCategory === activeCategoryKey || s.notificationCategory === 'All')
         );
 
         let suppressed = false;
@@ -528,7 +530,7 @@ export default function SchedulerConfig({
           executionStatus: suppressed ? 'BLOCKED_SUPPRESSED' : 'SUCCESS_DISPATCHED',
           eventPayload: {
             triggered_by_scheduler: sch.name,
-            linked_rule_key: linkedRule.ruleKey,
+            linked_notification_key: activeRuleKey,
             maintenance_record: selectedRecord
           },
           success: !suppressed,
@@ -539,7 +541,7 @@ export default function SchedulerConfig({
           matchedRules: [{
             ruleId: linkedRule.id,
             ruleName: linkedRule.name,
-            ruleKey: linkedRule.ruleKey,
+            notificationKey: activeRuleKey,
             criticality: linkedRule.criticality,
             priority: linkedRule.priority,
             conditionEvaluations: [{
@@ -560,7 +562,7 @@ export default function SchedulerConfig({
             },
             data: {
               scheduler_source: sch.id,
-              rule_key: linkedRule.ruleKey,
+              notification_key: activeRuleKey,
               vin: selectedRecord.vin
             }
           }
@@ -582,11 +584,11 @@ export default function SchedulerConfig({
   // Filtered schedulers list
   const filteredSchedulers = schedulers.filter(sch => {
     const matchesSearch = sch.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          sch.categoryKey.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          sch.notificationCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (sch.systemTaskKey && sch.systemTaskKey.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const isNotificationType = sch.type === 'notification' || (!sch.type && sch.categoryKey !== 'SYSTEM_CRON');
-    const isSystemType = sch.type === 'system_task' || sch.categoryKey === 'SYSTEM_CRON';
+    const isNotificationType = sch.type === 'notification' || (!sch.type && sch.notificationCategory !== 'SYSTEM_CRON');
+    const isSystemType = sch.type === 'system_task' || sch.notificationCategory === 'SYSTEM_CRON';
 
     if (activeTab === 'all') return matchesSearch;
     if (activeTab === 'notification') return matchesSearch && isNotificationType;
@@ -642,7 +644,7 @@ export default function SchedulerConfig({
           <div>
             <div className="text-[10px] font-bold uppercase font-mono text-slate-500">Alert Flows</div>
             <div className="text-base font-bold text-slate-100 font-mono mt-0.5">
-              {schedulers.filter(s => s.type === 'notification' || (!s.type && s.categoryKey !== 'SYSTEM_CRON')).length}
+              {schedulers.filter(s => s.type === 'notification' || (!s.type && s.notificationCategory !== 'SYSTEM_CRON')).length}
             </div>
           </div>
         </div>
@@ -654,7 +656,7 @@ export default function SchedulerConfig({
           <div>
             <div className="text-[10px] font-bold uppercase font-mono text-slate-500">System CRONs</div>
             <div className="text-base font-bold text-slate-100 font-mono mt-0.5">
-              {schedulers.filter(s => s.type === 'system_task' || s.categoryKey === 'SYSTEM_CRON').length}
+              {schedulers.filter(s => s.type === 'system_task' || s.notificationCategory === 'SYSTEM_CRON').length}
             </div>
           </div>
         </div>
@@ -832,11 +834,14 @@ export default function SchedulerConfig({
                   onChange={(e) => setLinkedRuleId(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-850 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 font-mono text-[11px] cursor-pointer"
                 >
-                  {rules.map(rule => (
-                    <option key={rule.id} value={rule.id}>
-                      🔑 [{rule.ruleKey}] {rule.name}
-                    </option>
-                  ))}
+                  {rules.map(rule => {
+                    const nk = rule.notificationKey || rule.config[0]?.notificationKey || rule.id;
+                    return (
+                      <option key={rule.id} value={rule.id}>
+                        🔑 [{nk}] {rule.name}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             ) : (
@@ -1190,7 +1195,7 @@ export default function SchedulerConfig({
             <div className="lg:col-span-5 flex flex-col justify-between">
               
               {/* If Notification Type Scheduler */}
-              {(executingScheduler.type === 'notification' || (!executingScheduler.type && executingScheduler.categoryKey !== 'SYSTEM_CRON')) ? (
+              {(executingScheduler.type === 'notification' || (!executingScheduler.type && executingScheduler.notificationCategory !== 'SYSTEM_CRON')) ? (
                 <div className="space-y-3 h-full flex flex-col justify-between">
                   <div>
                     <span className="text-[10px] font-bold font-mono text-slate-400 flex items-center uppercase mb-2">
@@ -1344,7 +1349,7 @@ export default function SchedulerConfig({
         ) : (
           filteredSchedulers.map((sch) => {
             const matchCount = countMatches(sch);
-            const isSystemCron = sch.type === 'system_task' || sch.categoryKey === 'SYSTEM_CRON';
+            const isSystemCron = sch.type === 'system_task' || sch.notificationCategory === 'SYSTEM_CRON';
             
             return (
               <div 
@@ -1377,7 +1382,7 @@ export default function SchedulerConfig({
 
                     {/* Delivery Category */}
                     <span className="text-[9px] font-mono font-bold bg-slate-950 border border-slate-850 px-2 py-0.5 rounded-md text-slate-400">
-                      📬 Category: {sch.categoryKey}
+                      📬 Category: {sch.notificationCategory}
                     </span>
 
                     {sch.enabled ? (

@@ -172,15 +172,16 @@ export default function TranslationManager({
       translations: nextTranslations
     };
 
+    const nk = currentRule.notificationKey || currentRule.config[0]?.notificationKey || currentRule.id;
     onUpdateRule(updatedRule);
-    triggerToast(`Translation saved for rule [${currentRule.ruleKey}] in ${SUPPORTED_LOCALES.find(l => l.code === activeLocaleCode)?.name}`);
+    triggerToast(`Translation saved for rule [${nk}] in ${SUPPORTED_LOCALES.find(l => l.code === activeLocaleCode)?.name}`);
   };
 
   // AI-Assisted Auto-translation Simulation
   const handleAIAssist = () => {
     if (!currentRule) return;
 
-    const ruleKey = currentRule.ruleKey;
+    const ruleKey = currentRule.notificationKey || currentRule.config[0]?.notificationKey || currentRule.id;
     const seeded = PRE_SEEDED_TRANSLATIONS[ruleKey]?.[activeLocaleCode];
 
     if (seeded) {
@@ -265,11 +266,14 @@ export default function TranslationManager({
                 onChange={(e) => setSelectedRuleId(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-slate-700 font-mono cursor-pointer"
               >
-                {rules.map(rule => (
-                  <option key={rule.id} value={rule.id}>
-                    {rule.name} ({rule.ruleKey})
-                  </option>
-                ))}
+                {rules.map(rule => {
+                  const nk = rule.notificationKey || rule.config[0]?.notificationKey || rule.id;
+                  return (
+                    <option key={rule.id} value={rule.id}>
+                      {rule.name} ({nk})
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -432,7 +436,7 @@ export default function TranslationManager({
                     <div className="flex items-center justify-between pt-1 border-t border-slate-900">
                       <span className="text-[10px] font-mono text-slate-500 uppercase flex items-center">
                         <Car className="h-3 w-3 mr-1 text-slate-500" />
-                        {setting.categoryKey}
+                        {setting.notificationCategory || (setting as any).categoryKey}
                       </span>
                       
                       <select

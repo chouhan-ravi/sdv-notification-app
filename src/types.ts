@@ -55,8 +55,8 @@ export interface Rule {
   description: string;
   config: RuleConfigItem[];
   // Optional fallback helpers
-  ruleKey?: string;
-  categoryKey?: string;
+  notificationKey?: string;
+  notificationCategory?: string;
   priority?: 'high' | 'normal' | 'low';
   criticality?: 'CRITICAL' | 'MAJOR' | 'MINOR' | 'INFO' | string;
   conditions?: RuleConditionItem[];
@@ -72,8 +72,8 @@ export interface Rule {
 export interface BusinessFilter {
   id: string;
   name: string;
-  categoryKey: string; // e.g. PLUG_N_CHARGE, VEHICLE_REMOTE_CONTROL
-  ruleKey?: string;
+  notificationCategory: string; // e.g. PLUG_N_CHARGE, VEHICLE_REMOTE_CONTROL
+  notificationKey?: string;
   cssGen: string;
   vehicleModel: string;
   yearStart: number;
@@ -89,8 +89,8 @@ export interface CarOwnerSetting {
   id: string;
   userId: string;
   vin: string;
-  categoryKey: string;
-  ruleKey?: string;
+  notificationCategory: string;
+  notificationKey?: string;
   enabled: boolean;
   language?: string;
 }
@@ -117,7 +117,7 @@ export interface SimulationLog {
   matchedRules: {
     ruleId: string;
     ruleName: string;
-    ruleKey: string;
+    notificationKey: string;
     criticality: string;
     priority: string;
     conditionEvaluations: {
@@ -188,7 +188,7 @@ export interface NotificationScheduler {
   serviceType: string;
   templateTitle: string;
   templateBody: string;
-  categoryKey: string;
+  notificationCategory: string;
   enabled: boolean;
   createdDate: string;
   lastExecutedAt?: string;
@@ -211,11 +211,14 @@ export interface DynamicCategory {
   translations?: KeyTranslation[];
 }
 
-export interface DynamicRuleKey {
+export interface DynamicNotificationKey {
   key: string;
   name: string;
-  categoryKey: string;
+  notificationCategory: string;
   enabled: boolean;
   description?: string;
   translations?: KeyTranslation[];
 }
+
+export type DynamicRuleKey = DynamicNotificationKey;
+

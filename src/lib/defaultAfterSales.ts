@@ -73,7 +73,7 @@ export const DEFAULT_SCHEDULERS: NotificationScheduler[] = [
     serviceType: 'Periodic Maintenance',
     templateTitle: '⚠️ Upcoming Maintenance Scheduled',
     templateBody: 'Dear owner of {vehicleModel} (VIN: {vin}), your vehicle is scheduled for {serviceType} in 7 days on {scheduledDate}. Estimated cost is ${cost}. Please confirm your drop-off window.',
-    categoryKey: 'VEHICLE_REMOTE_CONTROL',
+    notificationCategory: 'VEHICLE_REMOTE_CONTROL',
     enabled: true,
     createdDate: '2026-07-01'
   },
@@ -85,7 +85,7 @@ export const DEFAULT_SCHEDULERS: NotificationScheduler[] = [
     serviceType: 'Brake Pad Replacement',
     templateTitle: '🔴 URGENT: Overdue Safety Service Warning',
     templateBody: 'URGENT SAFETY NOTIFICATION: The {serviceType} service for vehicle {vehicleModel} (VIN: {vin}) is OVERDUE since {scheduledDate}. Continued operation may degrade braking efficacy. Please visit an authorized service dealer immediately.',
-    categoryKey: 'SAFETY_SYSTEMS',
+    notificationCategory: 'SAFETY_SYSTEMS',
     enabled: true,
     createdDate: '2026-07-05'
   },
@@ -97,7 +97,7 @@ export const DEFAULT_SCHEDULERS: NotificationScheduler[] = [
     serviceType: 'Recall Action',
     templateTitle: '🚨 Safety Recall Operations Ingress',
     templateBody: 'Safety systems gateway alert. Recall action ({serviceType}) is currently active on VIN {vin}. Safe operating envelope speed limits might be enforced.',
-    categoryKey: 'SAFETY_SYSTEMS',
+    notificationCategory: 'SAFETY_SYSTEMS',
     enabled: true,
     createdDate: '2026-07-06'
   },
@@ -109,7 +109,7 @@ export const DEFAULT_SCHEDULERS: NotificationScheduler[] = [
     serviceType: 'All',
     templateTitle: 'ℹ️ High-Mileage Diagnostics Ingested',
     templateBody: 'A high-mileage diagnostic check was registered for {vehicleModel} (VIN: {vin}) at {mileage} miles. Generating telemetry profiles...',
-    categoryKey: 'DIAGNOSTICS',
+    notificationCategory: 'DIAGNOSTICS',
     enabled: false,
     createdDate: '2026-07-10'
   }

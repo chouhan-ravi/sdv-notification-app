@@ -17,8 +17,8 @@ export const DEFAULT_BUSINESS_FILTERS: BusinessFilter[] = [
   {
     id: 'bf_plug_n_charge_us',
     name: 'Block Plug-n-Charge Alerts for US Region',
-    categoryKey: 'PLUG_N_CHARGE',
-    ruleKey: 'All',
+    notificationCategory: 'PLUG_N_CHARGE',
+    notificationKey: 'All',
     cssGen: 'All',
     vehicleModel: 'All',
     yearStart: 2020,
@@ -32,8 +32,8 @@ export const DEFAULT_BUSINESS_FILTERS: BusinessFilter[] = [
   {
     id: 'bf_remote_ice_old',
     name: 'Block Remote Engine Start for Classic ICE models in Europe',
-    categoryKey: 'VEHICLE_REMOTE_CONTROL',
-    ruleKey: 'All',
+    notificationCategory: 'VEHICLE_REMOTE_CONTROL',
+    notificationKey: 'All',
     cssGen: 'Gen 5',
     vehicleModel: 'Civic',
     yearStart: 2018,
@@ -51,14 +51,14 @@ export const DEFAULT_CAR_OWNER_SETTINGS: CarOwnerSetting[] = [
     id: 'cos_1',
     userId: 'usr_ravi_55',
     vin: '1HGCR2F8XHA000000',
-    categoryKey: 'PLUG_N_CHARGE',
+    notificationCategory: 'PLUG_N_CHARGE',
     enabled: false // This user opted out of Plug-n-Charge alerts on their main EV
   },
   {
     id: 'cos_2',
     userId: 'usr_ravi_55',
     vin: '1HGCR2F8XHA000000',
-    categoryKey: 'VEHICLE_REMOTE_CONTROL',
+    notificationCategory: 'VEHICLE_REMOTE_CONTROL',
     enabled: true
   }
 ];
