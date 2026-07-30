@@ -259,8 +259,9 @@ class ApiService {
     return this.delete(`${SERVICE_ENDPOINTS.RULE_SERVICE}/rules/${id}`);
   }
 
-  public async recacheRules(): Promise<any> {
-    return this.post(`${SERVICE_ENDPOINTS.RULE_SERVICE}/rules/re-cache`, {});
+  public async recacheRules(ruleIds?: string[]): Promise<any> {
+    const payload = ruleIds && ruleIds.length > 0 ? { ruleIds } : {};
+    return this.post(`${SERVICE_ENDPOINTS.RULE_SERVICE}/rules/re-cache`, payload);
   }
 
   // Notification Category API Services

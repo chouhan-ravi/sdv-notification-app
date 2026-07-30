@@ -451,10 +451,15 @@ export default function App() {
     setRuleToEdit(null);
   };
 
-  const handleReCache = async () => {
+  const handleReCache = async (ruleIds?: string[]) => {
     try {
-      await apiService.post<string>(SERVICE_ENDPOINTS.RULE_SERVICE+'/rules/re-cache',{});
-      triggerToast('All platform ingestion rules re-cached successfully');
+      const payload = ruleIds && ruleIds.length > 0 ? { ruleIds } : {};
+      await apiService.post<string>(SERVICE_ENDPOINTS.RULE_SERVICE+'/rules/re-cache', payload);
+      triggerToast(
+        ruleIds && ruleIds.length > 0 
+          ? `Rule "${ruleIds.join(', ')}" re-cached successfully` 
+          : 'All platform ingestion rules re-cached successfully'
+      );
       await fetchRulesFromApi();
     } catch (err: any) {
       console.error('API re-cache failed', err);

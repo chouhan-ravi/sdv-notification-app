@@ -33,7 +33,7 @@ interface RulesListProps {
   onDeleteRule: (id: string) => void;
   onDuplicateRule: (rule: Rule) => void;
   onSelectRuleForTesting: (rule: Rule) => void;
-  onReCache?: () => Promise<void>;
+  onReCache?: (ruleIds?: string[]) => Promise<void>;
 }
 
 export default function RulesList({
@@ -59,7 +59,7 @@ export default function RulesList({
     if (onReCache) {
       setReCachingRuleId(ruleId);
       try {
-        await onReCache();
+        await onReCache([ruleId]);
       } catch (err) {
         console.error('Re-cache error:', err);
       } finally {

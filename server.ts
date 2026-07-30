@@ -217,14 +217,33 @@ app.use((req, res, next) => {
 });
 
 // 2. REST API endpoints
+const RULE_PATHS = ['/rule-engine-service/api/v1/rules', '/api/rules', '/rules'];
+const RECACHE_PATHS = ['/rule-engine-service/api/v1/rules/re-cache', '/api/rules/re-cache', '/rules/re-cache'];
+const RESET_PATHS = ['/rule-engine-service/api/v1/rules/reset', '/api/rules/reset', '/rules/reset'];
+const EVALUATE_PATHS = ['/rule-engine-service/api/v1/rules/evaluate', '/api/rules/evaluate', '/api/evaluate', '/evaluate'];
+const RULE_ID_PATHS = ['/rule-engine-service/api/v1/rules/:id', '/api/rules/:id', '/rules/:id'];
+
 // GET: Fetch all active rules
-app.get('/api/rules', (req, res) => {
+app.get(RULE_PATHS, (req, res) => {
   const rules = getRules();
   res.json(rules);
 });
 
+// POST: Re-cache rules (supports optional payload { ruleIds: [...] })
+app.post(RECACHE_PATHS, (req, res) => {
+  const { ruleIds } = req.body || {};
+  console.log(`[REST API] Rules Re-cached. Target rule IDs:`, ruleIds || 'ALL');
+  res.json({
+    status: 'SUCCESS',
+    message: ruleIds && ruleIds.length > 0
+      ? `Successfully re-cached ${ruleIds.length} specified rule(s)`
+      : 'All platform ingestion rules re-cached successfully',
+    ruleIds: ruleIds || []
+  });
+});
+
 // POST: Create a new custom rule
-app.post('/api/rules', (req, res) => {
+app.post(RULE_PATHS, (req, res) => {
   const newRule = req.body as Rule;
   if (!newRule || !newRule.id || !newRule.name) {
     res.status(400).json({ error: 'Rule payload must be defined with valid name and ID fields.' });
@@ -244,7 +263,7 @@ app.post('/api/rules', (req, res) => {
 });
 
 // PUT: Update an existing rule
-app.put('/api/rules/:id', (req, res) => {
+app.put(RULE_ID_PATHS, (req, res) => {
   const { id } = req.params;
   const updatedRule = req.body as Rule;
 
@@ -268,7 +287,7 @@ app.put('/api/rules/:id', (req, res) => {
 });
 
 // DELETE: Remove a rule
-app.delete('/api/rules/:id', (req, res) => {
+app.delete(RULE_ID_PATHS, (req, res) => {
   const { id } = req.params;
   const rules = getRules();
   const filtered = rules.filter(r => r.id !== id);
@@ -284,14 +303,14 @@ app.delete('/api/rules/:id', (req, res) => {
 });
 
 // POST: Reset database to initial template defaults
-app.post('/api/rules/reset', (req, res) => {
+app.post(RESET_PATHS, (req, res) => {
   saveRules(DEFAULT_RULES);
   console.log(`[REST API] Database reset to initial factory configuration.`);
   res.json(DEFAULT_RULES);
 });
 
 // POST: Call rule evaluation API with notificationEvent JSON payload
-app.post(['/api/rules/evaluate', '/api/evaluate'], (req, res) => {
+app.post(EVALUATE_PATHS, (req, res) => {
   try {
     const body = req.body || {};
     // Support notificationEvent wrapper or raw JSON event payload
