@@ -1,34 +1,40 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 :root {
-  --bg-app: #020617;
-  --bg-card: #0f172a;
-  --bg-input: #020617;
-  --border-main: #1e293b;
-  --border-sub: #1e293b;
-  --text-main: #f1f5f9;
-  --text-sub: #cbd5e1;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
-  --accent-main: #4f46e5;
-  --accent-light: #1e1b4b;
-  --font-display-theme: "Space Grotesk", sans-serif;
+  /* CONCEPT DASHBOARD LIGHT THEME (DEFAULT) */
+  --bg-app: #f4f5f8;
+  --bg-card: #ffffff;
+  --bg-input: #ffffff;
+  --bg-sidebar: #0e0c28;
+  --border-main: #e6e6f2;
+  --border-sub: #f0f1f8;
+  --text-main: #2e384d;
+  --text-sub: #59647a;
+  --text-muted: #71748d;
+  --text-dim: #a0a5ba;
+  --accent-main: #5969ff;
+  --accent-hover: #4656e9;
+  --accent-light: #eef0ff;
+  --font-display-theme: "Public Sans", "Inter", sans-serif;
 }
 
-.fuchsia-light {
-  --bg-app: #F5F6F8;
-  --bg-card: #FFFFFF;
-  --bg-input: #FFFFFF;
-  --border-main: #E4E7EC;
-  --border-sub: #F2F4F7;
-  --text-main: #0B0C10;
-  --text-sub: #344054;
-  --text-muted: #667085;
-  --text-dim: #98A2B3;
-  --accent-main: #FC5A34;
-  --accent-light: #FFF0ED;
-  --font-display-theme: "Inter", sans-serif;
+.theme-dark {
+  /* CONCEPT DASHBOARD DARK THEME */
+  --bg-app: #0e0c28;
+  --bg-card: #18163a;
+  --bg-input: #12102f;
+  --bg-sidebar: #09081a;
+  --border-main: #25234e;
+  --border-sub: #1f1d44;
+  --text-main: #f4f5f8;
+  --text-sub: #c8cde0;
+  --text-muted: #8e94b2;
+  --text-dim: #606686;
+  --accent-main: #5969ff;
+  --accent-hover: #6e7cff;
+  --accent-light: #1f2256;
+  --font-display-theme: "Public Sans", "Inter", sans-serif;
 }
 
 @theme {
@@ -51,11 +57,18 @@
   --color-indigo-950: var(--accent-light);
 }
 
-/* Custom glow animations and scrollbar stylings for enterprise console aesthetic */
+/* Custom scrollbar & transition stylings for Concept Dashboard theme */
 * {
-  transition-property: background-color, border-color, text-decoration-color, fill, stroke;
+  transition-property: background-color, border-color, text-decoration-color, fill, stroke, box-shadow;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 400ms;
+  transition-duration: 200ms;
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
 @keyframes slow-spin {
@@ -76,13 +89,23 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.4);
+  background: rgba(14, 12, 40, 0.05);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.2);
+  background: rgba(89, 105, 255, 0.25);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.4);
+  background: rgba(89, 105, 255, 0.5);
 }
 
+/* Concept Dashboard Card Glow & Shadows */
+.concept-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-main);
+  box-shadow: 0px 1px 3px 0px rgba(0, 0, 0, 0.04), 0px 2px 8px 0px rgba(0, 0, 0, 0.02);
+}
+
+.concept-shadow {
+  box-shadow: 0 0 10px 0 rgba(193, 200, 209, 0.2);
+}

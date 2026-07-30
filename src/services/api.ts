@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { API_ENDPOINTS } from '../constants/apiEndpoints';
+import { API_BASE_URL } from '../constants/apiEndpoints';
 
 export interface HttpLog {
   id: string;
@@ -29,7 +29,7 @@ export interface ResponseInterceptor {
 type LogListener = (logs: HttpLog[]) => void;
 
 class ApiService {
-  private baseUrl: string = '/api';
+  private baseUrl: string = API_BASE_URL;
   private requestInterceptors: RequestInterceptor[] = [];
   private responseInterceptors: ResponseInterceptor[] = [];
   private httpLogs: HttpLog[] = [];

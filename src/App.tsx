@@ -11,6 +11,7 @@ import { DEFAULT_AFTER_SALES_RECORDS, DEFAULT_SCHEDULERS } from './lib/defaultAf
 import { DEFAULT_DYNAMIC_CATEGORIES, DEFAULT_DYNAMIC_RULE_KEYS } from './lib/defaultCategories';
 import TelemetryMetricsGrid from './components/TelemetryMetricsGrid';
 import { apiService } from './services/api';
+import { SERVICE_ENDPOINTS } from './constants/apiEndpoints';
 
 // Lazy loading views for high performance & fast initial UI rendering
 const RulesMatrixManager = React.lazy(() => import('./components/RulesMatrixManager'));
@@ -84,12 +85,13 @@ export default function App() {
     return saved === 'true';
   });
 
-  const [theme, setTheme] = useState<'dark' | 'fuchsia-light'>(() => {
-    return (localStorage.getItem('sdv_theme') as 'dark' | 'fuchsia-light') || 'dark';
+  const [theme, setTheme] = useState<'concept-light' | 'concept-dark'>(() => {
+    const saved = localStorage.getItem('sdv_theme');
+    return (saved === 'concept-dark' || saved === 'dark') ? 'concept-dark' : 'concept-light';
   });
 
   const handleToggleTheme = () => {
-    const nextTheme = theme === 'dark' ? 'fuchsia-light' : 'dark';
+    const nextTheme = theme === 'concept-light' ? 'concept-dark' : 'concept-light';
     setTheme(nextTheme);
     localStorage.setItem('sdv_theme', nextTheme);
   };
@@ -105,12 +107,12 @@ export default function App() {
   // Sync theme with document.documentElement
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === 'fuchsia-light') {
-      root.classList.add('fuchsia-light');
-      root.style.backgroundColor = '#F5F6F8';
+    if (theme === 'concept-dark') {
+      root.classList.add('theme-dark');
+      root.style.backgroundColor = '#0e0c28';
     } else {
-      root.classList.remove('fuchsia-light');
-      root.style.backgroundColor = '#020617';
+      root.classList.remove('theme-dark');
+      root.style.backgroundColor = '#f4f5f8';
     }
   }, [theme]);
 
@@ -198,7 +200,7 @@ export default function App() {
 
   const fetchRulesFromApi = async () => {
     try {
-      const data = await apiService.get<Rule[]>('/rules');
+      const data = await apiService.get<Rule[]>(SERVICE_ENDPOINTS.RULE_SERVICE+'/rules');
       setRules(data);
       localStorage.setItem('sdv_notification_rules', JSON.stringify(data));
     } catch (err) {
@@ -361,7 +363,7 @@ export default function App() {
     
     const updatedRule = { ...rule, enabled: !rule.enabled };
     try {
-      await apiService.put<Rule>(`/rules/${id}`, updatedRule);
+      await apiService.put<Rule>(SERVICE_ENDPOINTS.RULE_SERVICE+`/rules/${id}`, updatedRule);
       triggerToast(`Rule "${rule.name}" ${!rule.enabled ? 'enabled' : 'disabled'} successfully via PUT API`);
       await fetchRulesFromApi();
     } catch (err) {
@@ -378,7 +380,7 @@ export default function App() {
     
     if (window.confirm(`Are you sure you want to delete the rule "${rule.name}"?`)) {
       try {
-        await apiService.delete(`/rules/${id}`);
+        await apiService.delete(SERVICE_ENDPOINTS.RULE_SERVICE+`/rules/${id}`);
         triggerToast('Rule deleted successfully via DELETE API');
         await fetchRulesFromApi();
       } catch (err) {
@@ -400,7 +402,7 @@ export default function App() {
     };
     
     try {
-      await apiService.post<Rule>('/rules', copy);
+      await apiService.post<Rule>(SERVICE_ENDPOINTS.RULE_SERVICE+'/rules', copy);
       triggerToast(`Duplicated successfully via POST API`);
       await fetchRulesFromApi();
     } catch (err) {
@@ -425,11 +427,11 @@ export default function App() {
     try {
       if (ruleToEdit) {
         // Edit Mode: PUT Call
-        await apiService.put<Rule>(`/rules/${savedRule.id}`, savedRule);
+        await apiService.put<Rule>(SERVICE_ENDPOINTS.RULE_SERVICE+`/rules/${savedRule.id}`, savedRule);
         triggerToast('Rule settings updated successfully via PUT API');
       } else {
         // Create Mode: POST Call
-        await apiService.post<Rule>('/rules', savedRule);
+        await apiService.post<Rule>(SERVICE_ENDPOINTS.RULE_SERVICE+'/rules', savedRule);
         triggerToast('New rule created successfully via POST API');
       }
       await fetchRulesFromApi();
@@ -451,7 +453,7 @@ export default function App() {
 
   const handleReCache = async () => {
     try {
-      await apiService.get('/rules/re-cache');
+      await apiService.post<string>(SERVICE_ENDPOINTS.RULE_SERVICE+'/rules/re-cache',{});
       triggerToast('All platform ingestion rules re-cached successfully');
       await fetchRulesFromApi();
     } catch (err: any) {
@@ -607,7 +609,7 @@ export default function App() {
   const handleResetToDefaults = async () => {
     if (window.confirm('Reset all rules, corporate filters, and subscriber settings back to platform defaults? This will erase custom records.')) {
       try {
-        await apiService.post<Rule[]>('/rules/reset', {});
+        await apiService.post<Rule[]>(SERVICE_ENDPOINTS.RULE_SERVICE+'/rules/reset', {});
         await fetchRulesFromApi();
         triggerToast('SDV platforms factory values restored via REST API');
       } catch (err) {
@@ -675,47 +677,37 @@ export default function App() {
     const padding = sidebarCollapsed ? 'justify-center p-2.5' : 'space-x-2.5 px-3 py-2';
     const base = `w-full flex items-center ${padding} rounded-xl text-xs font-bold transition duration-150 uppercase tracking-wide border`;
     if (isActive) {
-      if (theme === 'fuchsia-light') {
-        return `${base} bg-[#16171F] border-[#FC5A34]/30 text-[#FC5A34] font-extrabold`;
-      }
-      return `${base} bg-indigo-600/15 border-indigo-500/30 text-indigo-400 font-extrabold`;
+      return `${base} bg-[#5969ff] border-[#5969ff] text-white font-extrabold shadow-md shadow-[#5969ff]/25`;
     } else {
-      if (theme === 'fuchsia-light') {
-        return `${base} text-slate-400 hover:text-slate-100 hover:bg-[#151720]/80 border-transparent`;
-      }
-      return `${base} text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border-transparent`;
+      return `${base} text-slate-400 hover:text-white hover:bg-white/10 border-transparent`;
     }
   };
 
   const getActionBtnClass = () => {
     const padding = sidebarCollapsed ? 'justify-center p-2' : 'space-x-2 px-3 py-1.5';
-    const base = `w-full flex items-center ${padding} text-left rounded-lg text-[11px] font-bold transition`;
-    if (theme === 'fuchsia-light') {
-      return `${base} text-slate-400 hover:text-slate-100 hover:bg-[#151720]/80`;
-    }
-    return `${base} text-slate-400 hover:text-slate-200 hover:bg-slate-900`;
+    return `w-full flex items-center ${padding} text-left rounded-lg text-[11px] font-bold transition text-slate-400 hover:text-white hover:bg-white/10`;
   };
 
   return (
-    <div id="sdv-app-root" className={`h-screen flex flex-col lg:flex-row overflow-hidden font-sans selection:bg-indigo-600/30 selection:text-white transition-colors duration-200 ${theme === 'fuchsia-light' ? 'fuchsia-light bg-slate-950 text-slate-900' : 'bg-slate-950 text-slate-100'}`}>
+    <div id="sdv-app-root" className={`h-screen flex flex-col lg:flex-row overflow-hidden font-sans selection:bg-[#5969ff]/30 selection:text-slate-900 transition-colors duration-200 ${theme === 'concept-dark' ? 'theme-dark bg-[#0e0c28] text-slate-100' : 'bg-[#f4f5f8] text-[#2e384d]'}`}>
       
       {/* GLOBAL TOAST NOTIFICATION */}
       {toastMsg && (
-        <div id="global-toast" className="fixed bottom-4 right-4 z-50 bg-slate-900 border border-indigo-500/30 text-indigo-300 text-xs font-semibold px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-2 animate-bounce-short">
-          <div className="h-2 w-2 rounded-full bg-indigo-400 animate-ping" />
+        <div id="global-toast" className="fixed bottom-4 right-4 z-50 bg-[#0e0c28] border border-[#5969ff]/40 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-2 animate-bounce-short">
+          <div className="h-2 w-2 rounded-full bg-[#5969ff] animate-ping" />
           <span>{toastMsg}</span>
         </div>
       )}
 
       {/* MOBILE TOP NAVIGATION BAR */}
-      <div className={`lg:hidden border-b p-4 sticky top-0 z-40 flex-shrink-0 flex items-center justify-between ${theme === 'fuchsia-light' ? 'bg-[#0B0C10] border-[#151720]' : 'bg-slate-950 border-slate-800'}`}>
+      <div className={`lg:hidden border-b p-4 sticky top-0 z-40 flex-shrink-0 flex items-center justify-between ${theme === 'concept-dark' ? 'bg-[#09081a] border-[#25234e]' : 'bg-[#0e0c28] border-[#18163a]'}`}>
         <div className="flex items-center space-x-2.5">
-          <div className="p-1.5 rounded-lg bg-gradient-to-tr from-indigo-900 to-indigo-600 text-white shadow">
+          <div className="p-1.5 rounded-lg bg-gradient-to-tr from-[#0e0c28] to-[#5969ff] text-white shadow">
             <Shield className="h-4 w-4" />
           </div>
           <div>
-            <h1 className={`text-xs font-bold tracking-tight uppercase font-display ${theme === 'fuchsia-light' ? 'text-slate-200' : 'text-slate-200'}`}>SDV Gate Control</h1>
-            <p className="text-[9px] text-slate-500 font-sans font-medium">Enterprise Console</p>
+            <h1 className="text-xs font-bold tracking-tight uppercase font-display text-white">SDV Gate Control</h1>
+            <p className="text-[9px] text-[#a0a5ba] font-sans font-medium">Concept Admin Console</p>
           </div>
         </div>
         
@@ -726,8 +718,8 @@ export default function App() {
             title="Go to Home"
             className={`p-1.5 rounded-lg border transition flex items-center justify-center ${
               activeScreen === 'simulator'
-                ? 'bg-indigo-600 border-indigo-500 text-white'
-                : 'border-slate-800 text-slate-400 hover:text-slate-200'
+                ? 'bg-[#5969ff] border-[#5969ff] text-white'
+                : 'border-white/20 text-slate-300 hover:text-white'
             }`}
           >
             <Home className="h-4 w-4" />
@@ -735,33 +727,34 @@ export default function App() {
 
           <button
             onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-            className="p-1.5 rounded-lg border border-slate-800 text-slate-400 hover:text-slate-200"
+            className="p-1.5 rounded-lg border border-white/20 text-slate-300 hover:text-white"
           >
             {mobileSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
       </div>
 
-      {/* LEFT SIDEBAR MENU BAR (Fixed Desktop Sidebar) */}
+      {/* LEFT SIDEBAR MENU BAR (Concept Classic Dark Navy Sidebar) */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 flex flex-col z-40 p-4 shrink-0 transition-all duration-300 overflow-y-auto h-full
-        ${theme === 'fuchsia-light' ? 'bg-[#0B0C10] border-r border-[#151720]' : 'bg-slate-950 border-r border-slate-800'}
+        bg-[#0e0c28] text-white border-r border-[#18163a]
         ${sidebarCollapsed ? 'lg:w-20' : 'lg:w-64'}
         ${mobileSidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full lg:translate-x-0'}
       `}>
         
         {/* LOGO & BRAND */}
-        <div className={`flex ${sidebarCollapsed ? 'flex-col items-center space-y-3' : 'items-center space-x-3'} mb-5 pb-4 border-b ${theme === 'fuchsia-light' ? 'border-[#151720]' : 'border-slate-800'} transition-all duration-300`}>
-          <div className="p-2 rounded-xl bg-gradient-to-tr from-indigo-950 to-indigo-600 text-white shadow-lg shadow-indigo-600/10 flex items-center justify-center shrink-0">
+        <div className={`flex ${sidebarCollapsed ? 'flex-col items-center space-y-3' : 'items-center space-x-3'} mb-5 pb-4 border-b border-white/10 transition-all duration-300`}>
+          <div className="p-2.5 rounded-xl bg-[#5969ff] text-white shadow-lg shadow-[#5969ff]/30 flex items-center justify-center shrink-0">
             <Shield className="h-5 w-5" />
           </div>
           {!sidebarCollapsed && (
             <div className="transition-opacity duration-300">
               <div className="flex items-center space-x-1.5">
-                <h1 className={`text-xs font-bold tracking-tight uppercase font-display ${theme === 'fuchsia-light' ? 'text-slate-100' : 'text-slate-200'}`}>SDV Vehicle</h1>
+                <h1 className="text-sm font-black tracking-wider uppercase font-display text-white">NMS</h1>
+                <span className="text-[9px] font-bold bg-[#5969ff] text-white px-1.5 py-0.2 rounded font-mono">SDV</span>
               </div>
-              <p className="text-[10px] text-slate-500 font-sans font-medium">
-                NOTIFICATION GATEWAY
+              <p className="text-[10px] text-[#a0a5ba] font-sans font-medium">
+                CONTROL
               </p>
             </div>
           )}
@@ -773,18 +766,14 @@ export default function App() {
             onClick={handleToggleSidebar}
             type="button"
             title={sidebarCollapsed ? "Switch to Full View" : "Switch to Icon View"}
-            className={`p-1.5 rounded-lg border transition flex items-center space-x-1 text-[10px] font-mono font-bold ${
-              theme === 'fuchsia-light'
-                ? 'border-[#1C1E26] bg-[#07080B] text-slate-400 hover:text-indigo-400 hover:border-[#1C1E26]'
-                : 'border-slate-800 bg-slate-950 text-slate-400 hover:text-indigo-400 hover:border-slate-800'
-            }`}
+            className="p-1.5 rounded-lg border border-white/10 bg-white/5 text-slate-300 hover:text-white hover:bg-white/15 transition flex items-center space-x-1 text-[10px] font-mono font-bold"
           >
             {sidebarCollapsed ? (
-              <ChevronRight className="h-4 w-4 text-indigo-400" />
+              <ChevronRight className="h-4 w-4 text-[#5969ff]" />
             ) : (
               <>
-                <ChevronLeft className="h-4 w-4 text-slate-500" />
-                <span className="text-[9px] uppercase tracking-wider text-slate-500 px-1">Collapse Menu</span>
+                <ChevronLeft className="h-4 w-4 text-slate-400" />
+                <span className="text-[9px] uppercase tracking-wider text-slate-400 px-1">Collapse Menu</span>
               </>
             )}
           </button>
@@ -794,11 +783,11 @@ export default function App() {
         <div className="space-y-4 flex-1">
           <div>
             {!sidebarCollapsed ? (
-              <span className="block text-[9px] font-bold text-slate-500 font-mono tracking-wider mb-2 uppercase px-2 transition-opacity duration-300">
-                Platform Navigation
+              <span className="block text-[9px] font-bold text-[#a0a5ba] font-mono tracking-wider mb-2 uppercase px-2 transition-opacity duration-300">
+                Menu Navigation
               </span>
             ) : (
-              <div className={`h-px my-3 ${theme === 'fuchsia-light' ? 'bg-[#151720]' : 'bg-slate-900'}`} />
+              <div className="h-px my-3 bg-white/10" />
             )}
             <nav className="space-y-1">
               <button
@@ -867,13 +856,13 @@ export default function App() {
           </div>
 
           {/* QUICK CONTROLS AREA */}
-          <div className={`pt-4 border-t ${theme === 'fuchsia-light' ? 'border-[#151720]' : 'border-slate-800'}`}>
+          <div className="pt-4 border-t border-white/10">
             {!sidebarCollapsed ? (
-              <span className="block text-[9px] font-bold text-slate-500 font-mono tracking-wider mb-2 uppercase px-2 transition-opacity duration-300">
+              <span className="block text-[9px] font-bold text-[#a0a5ba] font-mono tracking-wider mb-2 uppercase px-2 transition-opacity duration-300">
                 Registry Actions
               </span>
             ) : (
-              <div className={`h-px my-3 ${theme === 'fuchsia-light' ? 'bg-[#151720]' : 'bg-slate-800'}`} />
+              <div className="h-px my-3 bg-white/10" />
             )}
             <div className="space-y-1.5">
               <button
@@ -881,7 +870,7 @@ export default function App() {
                 title="Reset Defaults"
                 className={getActionBtnClass()}
               >
-                <RotateCcw className="h-4 w-4 text-slate-500 shrink-0" />
+                <RotateCcw className="h-4 w-4 text-slate-400 shrink-0" />
                 {!sidebarCollapsed && <span>Reset Defaults</span>}
               </button>
 
@@ -890,7 +879,7 @@ export default function App() {
                 title="Export Rules"
                 className={getActionBtnClass()}
               >
-                <FileDown className="h-4 w-4 text-slate-500 shrink-0" />
+                <FileDown className="h-4 w-4 text-slate-400 shrink-0" />
                 {!sidebarCollapsed && <span>Export Rules</span>}
               </button>
 
@@ -898,7 +887,7 @@ export default function App() {
                 title="Import Rules"
                 className={`${getActionBtnClass()} cursor-pointer`}
               >
-                <FileUp className="h-4 w-4 text-slate-500 shrink-0" />
+                <FileUp className="h-4 w-4 text-slate-400 shrink-0" />
                 {!sidebarCollapsed && <span>Import Rules</span>}
                 <input
                   type="file"
@@ -912,7 +901,7 @@ export default function App() {
                 <button
                   onClick={handleCreateRuleTrigger}
                   title="Create New Rule"
-                  className={`w-full flex items-center justify-center ${sidebarCollapsed ? 'p-2' : 'space-x-1.5 px-3 py-2'} bg-[#FC5A34] hover:bg-[#E04B28] text-white rounded-lg text-[11px] font-bold transition shadow`}
+                  className={`w-full flex items-center justify-center ${sidebarCollapsed ? 'p-2' : 'space-x-1.5 px-3 py-2'} bg-[#5969ff] hover:bg-[#4656e9] text-white rounded-lg text-[11px] font-bold transition shadow-md shadow-[#5969ff]/20`}
                 >
                   <Plus className="h-4 w-4 shrink-0" />
                   {!sidebarCollapsed && <span>CREATE NEW RULE</span>}
@@ -923,18 +912,18 @@ export default function App() {
         </div>
 
         {/* METADATA SUMMARY */}
-        <div className={`pt-4 border-t text-[10px] font-mono space-y-1 ${theme === 'fuchsia-light' ? 'border-[#151720] text-slate-600' : 'border-slate-800 text-slate-600'}`}>
+        <div className="pt-4 border-t border-white/10 text-[10px] font-mono space-y-1 text-slate-400">
           {sidebarCollapsed ? (
-            <div className="text-center text-[9px] text-slate-500 font-mono">v2.4</div>
+            <div className="text-center text-[9px] text-[#a0a5ba] font-mono">v2.4</div>
           ) : (
             <>
               <div className="flex justify-between">
-                <span>PLATFORM PORT:</span>
-                <span>3000</span>
+                <span>CONCEPT PORT:</span>
+                <span className="text-white">3000</span>
               </div>
               <div className="flex justify-between">
                 <span>VERSION:</span>
-                <span>2.4.1</span>
+                <span className="text-white">2.4.1</span>
               </div>
             </>
           )}
@@ -947,16 +936,16 @@ export default function App() {
         
         {/* TOP MENU BAR WITH PROFILE AND THEME TOGGLE (FIXED HEADER SECTION) */}
         <header className={`flex-shrink-0 z-30 px-4 md:px-6 lg:px-8 py-3.5 border-b transition-all duration-200 flex items-center justify-between backdrop-blur-md ${
-          theme === 'fuchsia-light' 
-            ? 'bg-[#07080B]/95 border-slate-800/80' 
-            : 'bg-slate-950/95 border-slate-800/80'
+          theme === 'concept-dark' 
+            ? 'bg-[#18163a]/95 border-[#25234e]' 
+            : 'bg-white/95 border-[#e6e6f2] shadow-sm'
         }`}>
           <div className="flex flex-col">
-            <h2 className="text-sm font-bold font-display uppercase tracking-widest text-slate-100">
+            <h2 className={`text-sm font-bold font-display uppercase tracking-widest ${theme === 'concept-dark' ? 'text-white' : 'text-[#2e384d]'}`}>
               SDV Vehicle Notification Gateway
             </h2>
-            <p className="text-[10px] text-slate-400 font-mono">
-              REGISTRY CONSOLE // {activeScreen.toUpperCase()}
+            <p className="text-[10px] text-[#71748d] font-mono">
+              CONCEPT DASHBOARD // {activeScreen.toUpperCase()}
             </p>
           </div>
           
@@ -965,12 +954,12 @@ export default function App() {
             <button
               onClick={() => setActiveScreen('simulator')}
               title="Go to Home / Playground"
-              className={`p-2.5 rounded-xl border transition flex items-center justify-center shadow-lg relative group ${
+              className={`p-2.5 rounded-xl border transition flex items-center justify-center shadow-sm relative group ${
                 activeScreen === 'simulator'
-                  ? 'bg-indigo-600 border-indigo-500 text-white shadow-indigo-600/30'
-                  : theme === 'fuchsia-light' 
-                    ? 'bg-white border-slate-200 hover:border-[#FC5A34] text-slate-500 hover:text-[#FC5A34]' 
-                    : 'bg-slate-900 border-slate-800 hover:border-indigo-500 text-slate-400 hover:text-indigo-400'
+                  ? 'bg-[#5969ff] border-[#5969ff] text-white shadow-md shadow-[#5969ff]/20'
+                  : theme === 'concept-dark' 
+                    ? 'bg-[#0e0c28] border-[#25234e] text-slate-300 hover:text-white' 
+                    : 'bg-[#f4f5f8] border-[#e6e6f2] hover:border-[#5969ff] text-[#2e384d] hover:text-[#5969ff]'
               }`}
             >
               <Home className="h-4.5 w-4.5" />
@@ -979,32 +968,32 @@ export default function App() {
             {/* THEME TOGGLE */}
             <button
               onClick={handleToggleTheme}
-              title={theme === 'dark' ? "Switch to Coral Light Theme" : "Switch to Dark Theme"}
-              className={`p-2.5 rounded-xl border transition flex items-center justify-center shadow-lg relative group ${
-                theme === 'fuchsia-light' 
-                  ? 'bg-white border-slate-200 hover:border-[#FC5A34] text-slate-500 hover:text-[#FC5A34]' 
-                  : 'bg-slate-900 border-slate-800 hover:border-indigo-500 text-slate-400 hover:text-indigo-400'
+              title={theme === 'concept-dark' ? "Switch to Concept Light Theme" : "Switch to Concept Dark Theme"}
+              className={`p-2.5 rounded-xl border transition flex items-center justify-center shadow-sm relative group ${
+                theme === 'concept-dark' 
+                  ? 'bg-[#0e0c28] border-[#25234e] text-amber-400 hover:text-amber-300' 
+                  : 'bg-[#f4f5f8] border-[#e6e6f2] hover:border-[#5969ff] text-[#2e384d] hover:text-[#5969ff]'
               }`}
             >
-              {theme === 'dark' ? (
-                <Sun className="h-4.5 w-4.5 text-amber-500 animate-spin-slow" />
+              {theme === 'concept-dark' ? (
+                <Sun className="h-4.5 w-4.5 text-amber-400 animate-spin-slow" />
               ) : (
-                <Moon className="h-4.5 w-4.5 text-slate-500 animate-pulse" />
+                <Moon className="h-4.5 w-4.5 text-[#5969ff] animate-pulse" />
               )}
             </button>
 
             {/* PROFILE SECTION */}
             <div className={`flex items-center space-x-2 border rounded-xl px-3 py-1.5 shadow-sm ${
-              theme === 'fuchsia-light' 
-                ? 'bg-white border-slate-200 text-slate-800' 
-                : 'bg-slate-900 border-slate-800 text-slate-100'
+              theme === 'concept-dark' 
+                ? 'bg-[#0e0c28] border-[#25234e] text-white' 
+                : 'bg-[#f4f5f8] border-[#e6e6f2] text-[#2e384d]'
             }`}>
-              <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-[#FC5A34] to-amber-500 flex items-center justify-center text-white text-[10px] font-bold shadow-inner">
+              <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-[#5969ff] to-[#2ec5d3] flex items-center justify-center text-white text-[10px] font-bold shadow-inner">
                 RC
               </div>
               <div className="hidden sm:flex flex-col text-left">
-                <span className={`text-[10px] font-bold leading-none ${theme === 'fuchsia-light' ? 'text-slate-800' : 'text-slate-200'}`}>Ravi Chouhan</span>
-                <span className="text-[8px] font-mono text-slate-500">usr_ravi_55</span>
+                <span className={`text-[10px] font-bold leading-none ${theme === 'concept-dark' ? 'text-white' : 'text-[#2e384d]'}`}>Ravi Chouhan</span>
+                <span className="text-[8px] font-mono text-[#71748d]">usr_ravi_55</span>
               </div>
             </div>
           </div>
