@@ -101,10 +101,21 @@ export interface RuleTranslation {
   notificationBody: string;
 }
 
+export interface PipelineStep {
+  stepNumber: 1 | 2 | 3 | 4 | 5 | 6;
+  name: string;
+  status: 'PASSED' | 'FAILED' | 'BLOCKED' | 'WARNING' | 'SKIPPED' | 'DISPATCHED';
+  title: string;
+  summary: string;
+  details?: Record<string, any>;
+  timestamp: string;
+}
+
 export interface SimulationLog {
   id: string;
   timestamp: string;
   vin: string;
+  userId?: string;
   commandId: string;
   executionStatus: string;
   eventPayload: any;
@@ -113,6 +124,12 @@ export interface SimulationLog {
     type: 'BUSINESS_FILTER' | 'USER_SETTING';
     message: string;
     filterId?: string;
+  };
+  validationStatus?: {
+    isDuplicate: boolean;
+    isFake: boolean;
+    isValid: boolean;
+    message: string;
   };
   matchedRules: {
     ruleId: string;
@@ -130,6 +147,7 @@ export interface SimulationLog {
     }[];
   }[];
   pushNotificationPayload: any | null;
+  pipelineSteps?: PipelineStep[];
 }
 
 export interface RuleEvaluationResponse {

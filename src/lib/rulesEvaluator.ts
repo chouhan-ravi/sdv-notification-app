@@ -9,6 +9,7 @@ import {
   RuleConditionGroup, 
   RuleConfigItem, 
   SimulationLog, 
+  PipelineStep,
   BusinessFilter, 
   CarOwnerSetting,
   RuleEvaluationResponse 
@@ -271,10 +272,13 @@ export function runRulesEvaluation(
     };
   }
 
-  return {
+  const userId = payload?.userId || `usr_${vin ? vin.slice(-5) : '78921'}`;
+
+  const partialLog: SimulationLog = {
     id: `sim_${Math.random().toString(36).substring(2, 11)}`,
     timestamp: timestampIso,
     vin,
+    userId,
     commandId,
     executionStatus,
     eventPayload: payload,
@@ -282,4 +286,149 @@ export function runRulesEvaluation(
     matchedRules: matchedRulesList,
     pushNotificationPayload
   };
+
+  partialLog.pipelineSteps = buildNotificationPipelineSteps(partialLog);
+
+  return partialLog;
+}
+
+/**
+ * Builds the 6-step lifecycle pipeline for Notification Events
+ */
+export function buildNotificationPipelineSteps(log: Partial<SimulationLog>): PipelineStep[] {
+  const ts = log.timestamp || new Date().toISOString();
+  const vin = log.vin || 'UNKNOWN_VIN';
+  const commandId = log.commandId || 'CMD_EVAL_01';
+  const payload = log.eventPayload || {};
+
+  // Step 1: Payload Ingress
+  const step1: PipelineStep = {
+    stepNumber: 1,
+    name: 'Payload Ingress',
+    status: 'PASSED',
+    title: '1. Notification Payload Ingress',
+    summary: `Payload [Cmd: ${commandId}] entered notification system for VIN ${vin.length > 10 ? vin.substring(0, 10) + '...' : vin}`,
+    timestamp: ts,
+    details: {
+      commandId,
+      vin,
+      ingressTimestamp: ts,
+      executionStatus: log.executionStatus || 'RECEIVED',
+      eventPayload: payload
+    }
+  };
+
+  // Step 2: Check status (fake/duplicate check)
+  const isFake = log.validationStatus?.isFake || payload?._isFake || payload?.fake === true || false;
+  const isDuplicate = log.validationStatus?.isDuplicate || payload?._isDuplicate || commandId.includes('DUP') || false;
+  const validationMsg = log.validationStatus?.message || 
+    (isFake ? 'Signature verification failed: Flagged as synthetic or fake payload.' :
+     isDuplicate ? 'Duplicate command ID detected within idempotency window.' :
+     'Payload signature authentic, non-duplicate & schema valid.');
+
+  const step2: PipelineStep = {
+    stepNumber: 2,
+    name: 'Validation Check',
+    status: isFake ? 'FAILED' : isDuplicate ? 'WARNING' : 'PASSED',
+    title: '2. Payload Validation & Deduplication Check',
+    summary: isFake ? '⚠️ FAKE PAYLOAD DETECTED' : isDuplicate ? '⚠️ DUPLICATE PAYLOAD DETECTED' : '✅ AUTHENTIC & VALID',
+    timestamp: ts,
+    details: {
+      isValid: !isFake && !isDuplicate,
+      isFake,
+      isDuplicate,
+      message: validationMsg
+    }
+  };
+
+  // Step 3: Rule config evaluation status
+  const matchedRules = log.matchedRules || [];
+  const topRule = matchedRules[0];
+  const step3Status = matchedRules.length > 0 ? 'PASSED' : 'SKIPPED';
+  const step3Summary = matchedRules.length > 0
+    ? `Evaluated rule config matrix. Matched rule [${topRule.notificationKey}] (${topRule.ruleName}) with criticality '${topRule.criticality || 'INFO'}'.`
+    : 'Evaluated rule config matrix. No active rules matched incoming payload conditions.';
+
+  const step3: PipelineStep = {
+    stepNumber: 3,
+    name: 'Rule Config Evaluation',
+    status: step3Status,
+    title: '3. Rule Config Evaluation Status',
+    summary: step3Summary,
+    timestamp: ts,
+    details: {
+      rulesEvaluatedCount: matchedRules.length,
+      topMatchedRuleKey: topRule?.notificationKey || 'NONE',
+      criticality: topRule?.criticality || 'N/A',
+      matchedRules
+    }
+  };
+
+  // Step 4: Check notification settings status (if NotificationCategory block or not)
+  const blockedReason = log.blockedReason;
+  const targetCategory = log.pushNotificationPayload?.data?.category || topRule?.notificationKey || 'vehicle.remote.control';
+  const step4Status = blockedReason ? 'BLOCKED' : 'PASSED';
+  const step4Summary = blockedReason
+    ? `Suppressed by ${blockedReason.type === 'BUSINESS_FILTER' ? 'Corporate Business Policy' : 'Car Owner Setting'}: ${blockedReason.message}`
+    : `NotificationCategory '${targetCategory}' unblocked and permitted for dispatch.`;
+
+  const step4: PipelineStep = {
+    stepNumber: 4,
+    name: 'Notification Settings Check',
+    status: step4Status,
+    title: '4. Notification Settings & Category Mute Check',
+    summary: step4Summary,
+    timestamp: ts,
+    details: {
+      blocked: !!blockedReason,
+      notificationCategory: targetCategory,
+      blockedReason
+    }
+  };
+
+  // Step 5: Assign proper notification body template event
+  const pushNotif = log.pushNotificationPayload?.notification;
+  const step5Status = pushNotif ? 'PASSED' : 'SKIPPED';
+  const step5Summary = pushNotif
+    ? `Assigned body template: "${pushNotif.title}" — "${pushNotif.body}"`
+    : 'No body template assigned (evaluation skipped or blocked prior to rendering).';
+
+  const step5: PipelineStep = {
+    stepNumber: 5,
+    name: 'Template Body Assignment',
+    status: step5Status,
+    title: '5. Assign Notification Body Template',
+    summary: step5Summary,
+    timestamp: ts,
+    details: {
+      title: pushNotif?.title || 'N/A',
+      body: pushNotif?.body || 'N/A',
+      sound: pushNotif?.sound || 'default',
+      dataEnvelope: log.pushNotificationPayload?.data
+    }
+  };
+
+  // Step 6: Finally, dispatch event for forwarding end user notification payload to fcm or 3rd party
+  const isDispatched = log.success && pushNotif && !blockedReason;
+  const step6Status = isDispatched ? 'DISPATCHED' : 'BLOCKED';
+  const step6Summary = isDispatched
+    ? `Dispatched to FCM push gateway. Token: ${log.pushNotificationPayload?.to || 'fcm_device_token_xyz'} (Priority: HIGH)`
+    : `Forwarding aborted before FCM dispatch. Reason: ${blockedReason ? 'Suppressed by policy' : 'No rule matched'}.`;
+
+  const step6: PipelineStep = {
+    stepNumber: 6,
+    name: 'FCM Forwarding Dispatch',
+    status: step6Status,
+    title: '6. Forwarding Dispatch Event (FCM / 3rd Party)',
+    summary: step6Summary,
+    timestamp: ts,
+    details: {
+      dispatched: isDispatched,
+      destination: 'Google FCM / Apple APNS Push Network',
+      targetToken: log.pushNotificationPayload?.to || 'fcm_device_token_xyz',
+      payloadEnvelope: log.pushNotificationPayload
+    }
+  };
+
+  return [step1, step2, step3, step4, step5, step6];
 }

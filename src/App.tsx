@@ -16,7 +16,7 @@ import { apiService } from './services/api';
 const RulesMatrixManager = React.lazy(() => import('./components/RulesMatrixManager'));
 const RuleConfigModal = React.lazy(() => import('./components/RuleConfigModal'));
 const SimulationPlayground = React.lazy(() => import('./components/SimulationPlayground'));
-const TelemetryAuditLog = React.lazy(() => import('./components/TelemetryAuditLog'));
+const NotificationEvents = React.lazy(() => import('./components/NotificationEvents'));
 const GatewayFilterRegistry = React.lazy(() => import('./components/GatewayFilterRegistry'));
 const AfterSalesMaintenanceManager = React.lazy(() => import('./components/AfterSalesMaintenanceManager'));
 const ProactiveNotificationScheduler = React.lazy(() => import('./components/ProactiveNotificationScheduler'));
@@ -1146,7 +1146,7 @@ export default function App() {
             {(activeScreen !== 'settings' && activeScreen !== 'after_sales' && activeScreen !== 'scheduler' && activeScreen !== 'category_keys' && activeScreen !== 'i18n') && (
               <div className="lg:col-span-4">
                 <React.Suspense fallback={<ScreenSkeleton />}>
-                  <TelemetryAuditLog 
+                  <NotificationEvents 
                     logs={logs} 
                     onLoadLogIntoSimulator={handleLoadLog} 
                     onClearLogs={handleClearLogs} 
