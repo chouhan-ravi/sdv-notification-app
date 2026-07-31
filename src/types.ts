@@ -223,19 +223,41 @@ export interface KeyTranslation {
 
 export interface DynamicKey {
   key: string;
-  displayName?: string;
+  displayName: string;
+  description?: string;
   notificationCategory?: string;
   enabled?: boolean;
-  description?: string;
   translations?: KeyTranslation[];
 }
 
 export interface DynamicCategory {
-  categeory?: string;
-  displayName?: string;
-  enabled?: boolean;
+  category: string;
+  displayName: string;
   description?: string;
   isMandatory?: boolean;
   mappedNotificationKeys?: DynamicKey[];
+  enabled?: boolean;
   translations?: KeyTranslation[];
+}
+
+export interface MatrixMappedRule {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface MatrixMappedKey {
+  key: string;
+  displayName: string;
+  description: string;
+  mappedCategories: any;
+}
+
+export interface MatrixCategoryItem {
+  category: string;
+  displayName: string;
+  description: string;
+  isMandatory: boolean;
+  mappedRules: MatrixMappedRule[];
+  mappedNotificationKeys: MatrixMappedKey[];
 }

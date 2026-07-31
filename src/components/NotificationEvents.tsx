@@ -74,11 +74,11 @@ export default function NotificationEvents({ logs, onLoadLogIntoSimulator, onCle
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase();
     return (
-      event.vin.toLowerCase().includes(term) ||
-      event.userId.toLowerCase().includes(term) ||
-      event.commandId.toLowerCase().includes(term) ||
-      event.summary.toLowerCase().includes(term) ||
-      event.status.toLowerCase().includes(term)
+      (event.vin || '').toLowerCase().includes(term) ||
+      (event.userId || '').toLowerCase().includes(term) ||
+      (event.commandId || '').toLowerCase().includes(term) ||
+      (event.summary || '').toLowerCase().includes(term) ||
+      (event.status || '').toLowerCase().includes(term)
     );
   });
 

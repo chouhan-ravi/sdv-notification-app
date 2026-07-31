@@ -606,15 +606,16 @@ export default function App() {
   };
 
   const handleUpdateCategory = (cat: DynamicCategory) => {
-    const updated = categories.map(c => c.key === cat.key ? cat : c);
+    const targetKey = cat.category || (cat as any).key;
+    const updated = categories.map(c => ((c.category || (c as any).key) === targetKey ? cat : c));
     saveCategoriesToLocalStorage(updated);
   };
 
   const handleDeleteCategory = (key: string) => {
-    const updated = categories.filter(c => c.key !== key);
+    const updated = categories.filter(c => (c.category || (c as any).key) !== key);
     saveCategoriesToLocalStorage(updated);
     // Unassign or delete orphaned notification keys
-    const updatedKeys = notificationKeys.filter(rk => (rk.notificationCategory || (rk as any).categoryKey) !== key);
+    const updatedKeys = notificationKeys.filter(rk => rk.notificationCategory !== key);
     saveNotificationKeysToLocalStorage(updatedKeys);
   };
 

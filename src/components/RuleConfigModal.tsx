@@ -35,10 +35,10 @@ export default function RuleFormModal({
   const [errors, setErrors] = useState<string[]>([]);
 
   // Helper accessors for dynamic backend category & key structures
-  const getCatValue = (c: DynamicCategory) => c.key || '';
-  const getCatLabel = (c: DynamicCategory) => c.name || c.key || '';
+  const getCatValue = (c: DynamicCategory) => c.category || (c as any).key || '';
+  const getCatLabel = (c: DynamicCategory) => c.displayName || (c as any).name || getCatValue(c);
   const getKeyValue = (k: DynamicKey) => k.key || '';
-  const getKeyLabel = (k: DynamicKey) => k.name || k.key || '';
+  const getKeyLabel = (k: DynamicKey) => k.displayName || (k as any).name || k.key || '';
 
   const getKeysForCategory = (catKey: string, categoriesList: DynamicCategory[], fallbackKeysList: DynamicKey[] = []): DynamicKey[] => {
     if (!catKey) return fallbackKeysList;

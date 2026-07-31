@@ -97,21 +97,22 @@ export default function RulesList({
   // Filter rules based on search and filters
   const filteredRules = rules.filter(rule => {
     const configs = rule.config || [];
+    const q = (searchTerm || '').toLowerCase();
     const matchesSearch = 
-      rule.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rule.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rule.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (rule.name || (rule as any).ruleName || '').toLowerCase().includes(q) ||
+      (rule.id || '').toLowerCase().includes(q) ||
+      (rule.description || '').toLowerCase().includes(q) ||
       configs.some(c => 
-        c.notificationCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.notificationKey.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.id.toLowerCase().includes(searchTerm.toLowerCase())
+        (c.notificationCategory || (c as any).category || '').toLowerCase().includes(q) ||
+        (c.notificationKey || (c as any).key || '').toLowerCase().includes(q) ||
+        (c.id || '').toLowerCase().includes(q)
       );
 
     const matchesCriticality = selectedCriticality === 'ALL' || 
       configs.some(c => c.criticality === selectedCriticality);
 
     const matchesCategory = selectedCategory === 'ALL' || 
-      configs.some(c => c.notificationCategory === selectedCategory);
+      configs.some(c => (c.notificationCategory || (c as any).category) === selectedCategory);
 
     return matchesSearch && matchesCriticality && matchesCategory;
   });

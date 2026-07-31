@@ -245,9 +245,10 @@ export default function AfterSalesMaintenance({
   };
 
   const filteredRecords = records.filter(rec => {
-    const matchesSearch = rec.vin.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          rec.vehicleModel.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          rec.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const q = (searchTerm || '').toLowerCase();
+    const matchesSearch = (rec.vin || '').toLowerCase().includes(q) || 
+                          (rec.vehicleModel || '').toLowerCase().includes(q) ||
+                          (rec.description || '').toLowerCase().includes(q);
     const matchesStatus = statusFilter === 'ALL' || rec.status === statusFilter;
     const matchesService = serviceFilter === 'ALL' || rec.serviceType === serviceFilter;
     return matchesSearch && matchesStatus && matchesService;

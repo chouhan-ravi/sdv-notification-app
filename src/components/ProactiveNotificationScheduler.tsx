@@ -348,7 +348,7 @@ export default function SchedulerConfig({
       
       let conditionMet = false;
       if (sch.triggerCondition === 'OnStatusChange') {
-        conditionMet = sch.triggerValue.toLowerCase() === rec.status.toLowerCase();
+        conditionMet = (sch.triggerValue || '').toLowerCase() === (rec.status || '').toLowerCase();
       } else if (sch.triggerCondition === 'DaysBefore') {
         conditionMet = true; // Simulated matches
       } else if (sch.triggerCondition === 'MileageExceeds') {

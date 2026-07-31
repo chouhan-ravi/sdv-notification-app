@@ -228,11 +228,57 @@ const CATEGORY_PATHS = ['/settings-service/api/v1/categories', '/rule-engine-ser
 const KEY_PATHS = ['/settings-service/api/v1/keys', '/settings-service/api/v1/rule-keys', '/rule-engine-service/api/v1/rule-keys', '/api/keys', '/keys', '/rule-engine-service/api/v1/notification-keys', '/api/notification-keys'];
 const SCHEDULER_PATHS = ['/rule-engine-service/api/v1/schedulers', '/api/schedulers', '/schedulers'];
 const TRIGGER_SCHEDULER_PATHS = ['/rule-engine-service/api/v1/schedulers/:id/trigger', '/api/schedulers/:id/trigger'];
+const MATRIX_PATHS = ['/matrix', '/api/matrix', '/rule-engine-service/api/v1/matrix', '/settings-service/api/v1/matrix'];
 
 // GET: Fetch all active rules
 app.get(RULE_PATHS, (req, res) => {
   const rules = getRules();
   res.json(rules);
+});
+
+// GET: Fetch Relationship Matrix
+app.get(MATRIX_PATHS, (req, res) => {
+  const rules = getRules();
+  const categories = DEFAULT_DYNAMIC_CATEGORIES;
+  const keys = DEFAULT_DYNAMIC_NOTIFICATION_KEYS;
+
+  const matrix = categories.map(cat => {
+    const catCode = cat.category || (cat as any).key || '';
+    const catName = cat.displayName || (cat as any).name || catCode;
+
+    const relatedKeys = keys
+      .filter(k => (k.notificationCategory || (k as any).categoryKey) === catCode)
+      .map(k => ({
+        key: k.key,
+        displayName: k.displayName || (k as any).name || k.key,
+        description: k.description || k.key,
+        mappedCategories: null
+      }));
+
+    const mappedRules = rules
+      .filter(r => {
+        if (r.notificationCategory === catCode) return true;
+        if (r.config && r.config.some(c => c.notificationCategory === catCode)) return true;
+        if (r.config && r.config.some(c => relatedKeys.some(rk => rk.key === c.notificationKey))) return true;
+        return false;
+      })
+      .map(r => ({
+        id: r.id,
+        name: r.name,
+        description: r.description || ''
+      }));
+
+    return {
+      category: catCode,
+      displayName: catName,
+      description: cat.description || catCode,
+      isMandatory: cat.isMandatory ?? true,
+      mappedRules,
+      mappedNotificationKeys: relatedKeys
+    };
+  });
+
+  res.json(matrix);
 });
 
 // GET: Fetch notification categories

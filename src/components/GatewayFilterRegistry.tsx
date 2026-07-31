@@ -138,17 +138,23 @@ export default function NotificationSettings({
   };
 
   // Filter lists based on query
-  const filteredBF = businessFilters.filter(f => 
-    f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (f.notificationCategory || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    f.region.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredBF = businessFilters.filter(f => {
+    const q = (searchQuery || '').toLowerCase();
+    return (
+      (f.name || '').toLowerCase().includes(q) ||
+      (f.notificationCategory || (f as any).category || '').toLowerCase().includes(q) ||
+      (f.region || '').toLowerCase().includes(q)
+    );
+  });
 
-  const filteredCOS = userSettings.filter(s => 
-    s.userId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.vin.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (s.notificationCategory || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCOS = userSettings.filter(s => {
+    const q = (searchQuery || '').toLowerCase();
+    return (
+      (s.userId || '').toLowerCase().includes(q) ||
+      (s.vin || '').toLowerCase().includes(q) ||
+      (s.notificationCategory || (s as any).category || '').toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="space-y-6">
@@ -761,9 +767,10 @@ export default function NotificationSettings({
                         const matchedRule = rules.find(r => (r.notificationKey || r.config[0]?.notificationKey) === nk);
                         const relatedCategories = Array.from(new Set(
                           rules.filter(r => (r.notificationKey || r.config[0]?.notificationKey) === nk).map(r => {
-                            const foundCat = activeCategories.find(c => c.key === (r.notificationCategory || r.config[0]?.notificationCategory));
+                            const foundCat: any = activeCategories.find((c: any) => (c.category || c.key) === (r.notificationCategory || r.config[0]?.notificationCategory));
+                            const catLabel = foundCat ? (foundCat.displayName || foundCat.name || '') : '';
                             return foundCat 
-                              ? (foundCat.name.includes(' ') ? foundCat.name.split(' ').slice(1).join(' ') : foundCat.name) 
+                              ? (catLabel.includes(' ') ? catLabel.split(' ').slice(1).join(' ') : catLabel) 
                               : (r.notificationCategory || r.config[0]?.notificationCategory);
                           })
                         ));
