@@ -266,11 +266,11 @@ class ApiService {
 
   // Notification Category API Services
   public async fetchCategories(): Promise<any> {
-    return this.get(`${SERVICE_ENDPOINTS.RULE_SERVICE}/categories`);
+    return this.get(`${SERVICE_ENDPOINTS.SETTING_SERVICE}/categories`);
   }
 
-  public async fetchRuleKeys(): Promise<any> {
-    return this.get(`${SERVICE_ENDPOINTS.RULE_SERVICE}/rule-keys`);
+  public async fetchKeys(): Promise<any> {
+    return this.get(`${SERVICE_ENDPOINTS.SETTING_SERVICE}/keys`);
   }
 
   // Scheduler & Proactive Notification API Services

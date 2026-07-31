@@ -218,10 +218,36 @@ export default function App() {
     }
   };
 
+  const fetchCategoriesFromApi = async () => {
+    try {
+      const data = await apiService.fetchCategories();
+      if (Array.isArray(data) && data.length > 0) {
+        setCategories(data);
+        localStorage.setItem('sdv_dynamic_categories', JSON.stringify(data));
+      }
+    } catch (err) {
+      console.warn('REST backend categories fetch unreachable, falling back to LocalStorage:', err);
+    }
+  };
+
+  const fetchRuleKeysFromApi = async () => {
+    try {
+      const data = await apiService.fetchRuleKeys();
+      if (Array.isArray(data) && data.length > 0) {
+        setRuleKeys(data);
+        localStorage.setItem('sdv_dynamic_rule_keys', JSON.stringify(data));
+      }
+    } catch (err) {
+      console.warn('REST backend rule keys fetch unreachable, falling back to LocalStorage:', err);
+    }
+  };
+
   // Initialize and load from local storage
   useEffect(() => {
-    // 1. Rules (Loads from REST API with dynamic LocalStorage fallback)
+    // 1. Rules, Categories & Rule Keys (Loads from REST API with dynamic LocalStorage fallback)
     fetchRulesFromApi();
+    fetchCategoriesFromApi();
+    fetchRuleKeysFromApi();
 
     // 2. Simulation Logs
     const savedLogs = localStorage.getItem('sdv_simulation_logs');

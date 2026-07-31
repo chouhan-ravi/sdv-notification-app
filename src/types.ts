@@ -226,10 +226,11 @@ export interface DynamicCategory {
   name: string;
   enabled: boolean;
   description?: string;
+  notificationKey: string;
   translations?: KeyTranslation[];
 }
 
-export interface DynamicNotificationKey {
+export interface DynamicKey {
   key: string;
   name: string;
   notificationCategory: string;
@@ -237,6 +238,3 @@ export interface DynamicNotificationKey {
   description?: string;
   translations?: KeyTranslation[];
 }
-
-export type DynamicRuleKey = DynamicNotificationKey;
-

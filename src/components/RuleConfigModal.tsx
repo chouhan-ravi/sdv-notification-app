@@ -4,8 +4,10 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Rule, RuleConfigItem, RuleConditionItem, RuleOperator, DynamicCategory, DynamicRuleKey } from '../types';
-import { X, Plus, Trash2, Save, HelpCircle } from 'lucide-react';
+import { Rule, RuleConfigItem, RuleConditionItem, RuleOperator, DynamicCategory, DynamicKey } from '../types';
+import { X, Plus, Trash2, Save, HelpCircle, RefreshCw } from 'lucide-react';
+import { apiService } from '../services/api';
+import { DEFAULT_DYNAMIC_CATEGORIES, DEFAULT_DYNAMIC_RULE_KEYS } from '../lib/defaultCategories';
 
 interface RuleFormModalProps {
   isOpen: boolean;
@@ -13,8 +15,7 @@ interface RuleFormModalProps {
   onSave: (rule: Rule) => void;
   ruleToEdit: Rule | null;
   categories?: DynamicCategory[];
-  ruleKeys?: DynamicRuleKey[];
-  notificationKeys?: DynamicRuleKey[];
+  keys?: DynamicKey[];
 }
 
 export default function RuleFormModal({
@@ -23,18 +24,51 @@ export default function RuleFormModal({
   onSave,
   ruleToEdit,
   categories = [],
-  ruleKeys = [],
-  notificationKeys
+  keys = [],
 }: RuleFormModalProps) {
-  const activeKeys = notificationKeys || ruleKeys;
   const [ruleId, setRuleId] = useState('');
   const [name, setName] = useState('');
   const [enabled, setEnabled] = useState(true);
   const [description, setDescription] = useState('');
   
+  // API fetched states for Categories & Notification Keys
+  const [fetchedCategories, setFetchedCategories] = useState<DynamicCategory[]>([]);
+  const [fetchedKeys, setFetchedKeys] = useState<DynamicKey[]>([]);
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
+
   // Configs array
   const [configs, setConfigs] = useState<RuleConfigItem[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
+
+  // Execute API calls for NotificationCategory & NotificationKey on modal open
+  useEffect(() => {
+    if (isOpen) {
+      setIsLoadingMetadata(true);
+      Promise.allSettled([
+        apiService.fetchCategories(),
+        apiService.fetchKeys()
+      ]).then(([catRes, rkRes]) => {
+        if (catRes.status === 'fulfilled' && Array.isArray(catRes.value) && catRes.value.length > 0) {
+          setFetchedCategories(catRes.value);
+        }
+        if (rkRes.status === 'fulfilled' && Array.isArray(rkRes.value) && rkRes.value.length > 0) {
+          setFetchedKeys(rkRes.value);
+        }
+      }).catch((err) => {
+        console.warn('API fetch for Notification Categories / Keys in Rule Modal failed:', err);
+      }).finally(() => {
+        setIsLoadingMetadata(false);
+      });
+    }
+  }, [isOpen]);
+
+  const activeCategories = fetchedCategories.length > 0
+    ? fetchedCategories
+    : (categories.length > 0 ? categories : DEFAULT_DYNAMIC_CATEGORIES);
+
+  const activeKeys = fetchedKeys.length > 0
+    ? fetchedKeys
+    : (keys.length > 0 ? keys : DEFAULT_DYNAMIC_RULE_KEYS);
 
   useEffect(() => {
     if (ruleToEdit) {
@@ -49,8 +83,8 @@ export default function RuleFormModal({
         // Fallback default config if rule configs list is unpopulated
         setConfigs([{
           id: `cfg_${Math.random().toString(36).substring(2, 9)}`,
-          notificationCategory: ruleToEdit.notificationCategory || (ruleToEdit as any).categoryKey || 'vehicle.remote.control',
-          notificationKey: ruleToEdit.notificationKey || (ruleToEdit as any).ruleKey || 'vehicle.remote.event',
+          notificationCategory: ruleToEdit.notificationCategory || (ruleToEdit as any).categoryKey || activeCategories[0]?.key || 'PLUG_N_CHARGE',
+          notificationKey: ruleToEdit.notificationKey || (ruleToEdit as any).ruleKey || activeKeys[0]?.key || 'RULE_PLUG_CHARGE_IN_PROGRESS',
           criticality: ruleToEdit.criticality || 'INFO',
           conditions: [{
             and: (ruleToEdit.conditions || []).map(c => ({
@@ -76,11 +110,15 @@ export default function RuleFormModal({
       setName('');
       setEnabled(true);
       setDescription('');
+      const initCategory = activeCategories[0]?.key || '';
+      const matchingKeys = initCategory ? activeKeys.filter(rk => rk.notificationCategory === initCategory || (rk as any).categoryKey === initCategory) : activeKeys;
+      const initKey = matchingKeys[0]?.key || activeKeys[0]?.key || '';
+
       setConfigs([
         {
           id: `cfg_${Math.random().toString(36).substring(2, 8)}`,
-          notificationCategory: '',
-          notificationKey: '',
+          notificationCategory: initCategory,
+          notificationKey: initKey,
           criticality: 'INFO',
           conditions: [
             {
@@ -110,10 +148,14 @@ export default function RuleFormModal({
   if (!isOpen) return null;
 
   const addConfig = () => {
+    const initCat = activeCategories[0]?.key || '';
+    const matchingKeys = initCat ? activeKeys.filter(rk => rk.notificationCategory === initCat || (rk as any).categoryKey === initCat) : activeKeys;
+    const initKey = matchingKeys[0]?.key || activeKeys[0]?.key || '';
+
     const newCfg: RuleConfigItem = {
       id: `cfg_${Math.random().toString(36).substring(2, 8)}`,
-      notificationCategory: '',
-      notificationKey: '',
+      notificationCategory: initCat,
+      notificationKey: initKey,
       criticality: 'INFO',
       conditions: [
         {
@@ -387,27 +429,66 @@ export default function RuleFormModal({
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 font-mono uppercase mb-1">NOTIFICATION CATEGORY</label>
-                      <input
-                        type="text"
+                      <label className="block text-[10px] font-bold text-slate-500 font-mono uppercase mb-1 flex items-center justify-between">
+                        <span>NOTIFICATION CATEGORY</span>
+                        {isLoadingMetadata && <RefreshCw className="h-2.5 w-2.5 animate-spin text-indigo-400" />}
+                      </label>
+                      <select
                         required
-                        placeholder="e.g. vehicle.remote.control"
                         value={cfg.notificationCategory}
-                        onChange={(e) => updateConfigField(cfgIdx, { notificationCategory: e.target.value })}
-                        className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono placeholder-slate-600"
-                      />
+                        onChange={(e) => {
+                          const newCatKey = e.target.value;
+                          const matchingKeys = activeKeys.filter(
+                            rk => rk.notificationCategory === newCatKey || (rk as any).categoryKey === newCatKey
+                          );
+                          const newRkKey = matchingKeys.length > 0 ? matchingKeys[0].key : cfg.notificationKey;
+                          updateConfigField(cfgIdx, {
+                            notificationCategory: newCatKey,
+                            notificationKey: newRkKey
+                          });
+                        }}
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono cursor-pointer focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="" disabled>-- Select Category --</option>
+                        {activeCategories.map((cat) => (
+                          <option key={cat.key} value={cat.key}>
+                            {cat.name ? `${cat.name} (${cat.key})` : cat.key}
+                          </option>
+                        ))}
+                        {cfg.notificationCategory && !activeCategories.some(c => c.key === cfg.notificationCategory) && (
+                          <option value={cfg.notificationCategory}>
+                            {cfg.notificationCategory}
+                          </option>
+                        )}
+                      </select>
                     </div>
 
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 font-mono uppercase mb-1">NOTIFICATION KEY</label>
-                      <input
-                        type="text"
+                      <select
                         required
-                        placeholder="e.g. vehicle.remote.event"
                         value={cfg.notificationKey}
                         onChange={(e) => updateConfigField(cfgIdx, { notificationKey: e.target.value })}
-                        className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono text-emerald-400 placeholder-slate-600"
-                      />
+                        className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-emerald-400 font-mono cursor-pointer focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="" disabled>-- Select Key --</option>
+                        {(() => {
+                          const matchingKeys = cfg.notificationCategory
+                            ? activeKeys.filter(rk => rk.notificationCategory === cfg.notificationCategory || (rk as any).categoryKey === cfg.notificationCategory)
+                            : activeKeys;
+                          const listToDisplay = matchingKeys.length > 0 ? matchingKeys : activeKeys;
+                          return listToDisplay.map((rk) => (
+                            <option key={rk.key} value={rk.key}>
+                              {rk.name ? `${rk.name} (${rk.key})` : rk.key}
+                            </option>
+                          ));
+                        })()}
+                        {cfg.notificationKey && !activeKeys.some(rk => rk.key === cfg.notificationKey) && (
+                          <option value={cfg.notificationKey}>
+                            {cfg.notificationKey}
+                          </option>
+                        )}
+                      </select>
                     </div>
 
                     <div>
