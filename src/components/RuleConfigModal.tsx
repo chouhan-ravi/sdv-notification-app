@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Rule, RuleConfigItem, RuleConditionItem, RuleOperator, DynamicCategory, DynamicKey } from '../types';
 import { X, Plus, Trash2, Save, HelpCircle, RefreshCw } from 'lucide-react';
 import { apiService } from '../services/api';
-import { DEFAULT_DYNAMIC_CATEGORIES, DEFAULT_DYNAMIC_RULE_KEYS } from '../lib/defaultCategories';
+import { DEFAULT_DYNAMIC_CATEGORIES, DEFAULT_DYNAMIC_NOTIFICATION_KEYS } from '../lib/defaultCategories';
 
 interface RuleFormModalProps {
   isOpen: boolean;
@@ -40,25 +40,41 @@ export default function RuleFormModal({
   const [configs, setConfigs] = useState<RuleConfigItem[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
 
-  // Execute API calls for NotificationCategory & NotificationKey on modal open
+  // Helper accessors for dynamic backend category & key structures
+  const getCatValue = (c: DynamicCategory) => c.category || c.key || '';
+  const getCatLabel = (c: DynamicCategory) => c.displayName || c.name || c.category || c.key || '';
+  const getKeyValue = (k: DynamicKey) => k.key || '';
+  const getKeyLabel = (k: DynamicKey) => k.displayName || k.name || k.key || '';
+
+  const getKeysForCategory = (catKey: string, categoriesList: DynamicCategory[], fallbackKeysList: DynamicKey[] = []): DynamicKey[] => {
+    if (!catKey) return fallbackKeysList;
+    const foundCat = categoriesList.find(c => getCatValue(c) === catKey);
+    if (foundCat && Array.isArray(foundCat.mappedNotificationKeys)) {
+      return foundCat.mappedNotificationKeys;
+    }
+    const matchingFromKeys = fallbackKeysList.filter(k => k.notificationCategory === catKey || (k as any).categoryKey === catKey);
+    if (matchingFromKeys.length > 0) {
+      return matchingFromKeys;
+    }
+    return fallbackKeysList;
+  };
+
+  // Execute GET /categories API call on modal open (provides categories & nested mappedNotificationKeys)
   useEffect(() => {
     if (isOpen) {
       setIsLoadingMetadata(true);
-      Promise.allSettled([
-        apiService.fetchCategories(),
-        apiService.fetchKeys()
-      ]).then(([catRes, rkRes]) => {
-        if (catRes.status === 'fulfilled' && Array.isArray(catRes.value) && catRes.value.length > 0) {
-          setFetchedCategories(catRes.value);
-        }
-        if (rkRes.status === 'fulfilled' && Array.isArray(rkRes.value) && rkRes.value.length > 0) {
-          setFetchedKeys(rkRes.value);
-        }
-      }).catch((err) => {
-        console.warn('API fetch for Notification Categories / Keys in Rule Modal failed:', err);
-      }).finally(() => {
-        setIsLoadingMetadata(false);
-      });
+      apiService.fetchCategories()
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) {
+            setFetchedCategories(data);
+          }
+        })
+        .catch((err) => {
+          console.warn('API fetch for GET /categories in Rule Modal failed:', err);
+        })
+        .finally(() => {
+          setIsLoadingMetadata(false);
+        });
     }
   }, [isOpen]);
 
@@ -68,7 +84,7 @@ export default function RuleFormModal({
 
   const activeKeys = fetchedKeys.length > 0
     ? fetchedKeys
-    : (keys.length > 0 ? keys : DEFAULT_DYNAMIC_RULE_KEYS);
+    : (keys.length > 0 ? keys : DEFAULT_DYNAMIC_NOTIFICATION_KEYS);
 
   useEffect(() => {
     if (ruleToEdit) {
@@ -81,10 +97,14 @@ export default function RuleFormModal({
         setConfigs(ruleToEdit.config);
       } else {
         // Fallback default config if rule configs list is unpopulated
+        const initCategory = ruleToEdit.notificationCategory || (ruleToEdit as any).categoryKey || getCatValue(activeCategories[0]) || 'milon.burglar.category';
+        const initKeys = getKeysForCategory(initCategory, activeCategories, activeKeys);
+        const initKey = ruleToEdit.notificationKey || (ruleToEdit as any).ruleKey || getKeyValue(initKeys[0]) || 'milon.burgluer.handbrake.key';
+
         setConfigs([{
           id: `cfg_${Math.random().toString(36).substring(2, 9)}`,
-          notificationCategory: ruleToEdit.notificationCategory || (ruleToEdit as any).categoryKey || activeCategories[0]?.key || 'PLUG_N_CHARGE',
-          notificationKey: ruleToEdit.notificationKey || (ruleToEdit as any).ruleKey || activeKeys[0]?.key || 'RULE_PLUG_CHARGE_IN_PROGRESS',
+          notificationCategory: initCategory,
+          notificationKey: initKey,
           criticality: ruleToEdit.criticality || 'INFO',
           conditions: [{
             and: (ruleToEdit.conditions || []).map(c => ({
@@ -110,9 +130,9 @@ export default function RuleFormModal({
       setName('');
       setEnabled(true);
       setDescription('');
-      const initCategory = activeCategories[0]?.key || '';
-      const matchingKeys = initCategory ? activeKeys.filter(rk => rk.notificationCategory === initCategory || (rk as any).categoryKey === initCategory) : activeKeys;
-      const initKey = matchingKeys[0]?.key || activeKeys[0]?.key || '';
+      const initCategory = getCatValue(activeCategories[0]) || '';
+      const availableKeys = getKeysForCategory(initCategory, activeCategories, activeKeys);
+      const initKey = getKeyValue(availableKeys[0]) || '';
 
       setConfigs([
         {
@@ -148,9 +168,9 @@ export default function RuleFormModal({
   if (!isOpen) return null;
 
   const addConfig = () => {
-    const initCat = activeCategories[0]?.key || '';
-    const matchingKeys = initCat ? activeKeys.filter(rk => rk.notificationCategory === initCat || (rk as any).categoryKey === initCat) : activeKeys;
-    const initKey = matchingKeys[0]?.key || activeKeys[0]?.key || '';
+    const initCat = getCatValue(activeCategories[0]) || '';
+    const availableKeys = getKeysForCategory(initCat, activeCategories, activeKeys);
+    const initKey = getKeyValue(availableKeys[0]) || '';
 
     const newCfg: RuleConfigItem = {
       id: `cfg_${Math.random().toString(36).substring(2, 8)}`,
@@ -438,10 +458,9 @@ export default function RuleFormModal({
                         value={cfg.notificationCategory}
                         onChange={(e) => {
                           const newCatKey = e.target.value;
-                          const matchingKeys = activeKeys.filter(
-                            rk => rk.notificationCategory === newCatKey || (rk as any).categoryKey === newCatKey
-                          );
-                          const newRkKey = matchingKeys.length > 0 ? matchingKeys[0].key : cfg.notificationKey;
+                          const availableKeys = getKeysForCategory(newCatKey, activeCategories, activeKeys);
+                          const keyExists = availableKeys.some(k => getKeyValue(k) === cfg.notificationKey);
+                          const newRkKey = keyExists ? cfg.notificationKey : (availableKeys.length > 0 ? getKeyValue(availableKeys[0]) : '');
                           updateConfigField(cfgIdx, {
                             notificationCategory: newCatKey,
                             notificationKey: newRkKey
@@ -450,12 +469,16 @@ export default function RuleFormModal({
                         className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono cursor-pointer focus:outline-none focus:border-indigo-500"
                       >
                         <option value="" disabled>-- Select Category --</option>
-                        {activeCategories.map((cat) => (
-                          <option key={cat.key} value={cat.key}>
-                            {cat.name ? `${cat.name} (${cat.key})` : cat.key}
-                          </option>
-                        ))}
-                        {cfg.notificationCategory && !activeCategories.some(c => c.key === cfg.notificationCategory) && (
+                        {activeCategories.map((cat) => {
+                          const cVal = getCatValue(cat);
+                          const cLbl = getCatLabel(cat);
+                          return (
+                            <option key={cVal} value={cVal}>
+                              {cLbl !== cVal ? `${cLbl} (${cVal})` : cVal}
+                            </option>
+                          );
+                        })}
+                        {cfg.notificationCategory && !activeCategories.some(c => getCatValue(c) === cfg.notificationCategory) && (
                           <option value={cfg.notificationCategory}>
                             {cfg.notificationCategory}
                           </option>
@@ -473,17 +496,21 @@ export default function RuleFormModal({
                       >
                         <option value="" disabled>-- Select Key --</option>
                         {(() => {
-                          const matchingKeys = cfg.notificationCategory
-                            ? activeKeys.filter(rk => rk.notificationCategory === cfg.notificationCategory || (rk as any).categoryKey === cfg.notificationCategory)
-                            : activeKeys;
-                          const listToDisplay = matchingKeys.length > 0 ? matchingKeys : activeKeys;
-                          return listToDisplay.map((rk) => (
-                            <option key={rk.key} value={rk.key}>
-                              {rk.name ? `${rk.name} (${rk.key})` : rk.key}
-                            </option>
-                          ));
+                          const availableKeys = getKeysForCategory(cfg.notificationCategory, activeCategories, activeKeys);
+                          if (availableKeys.length === 0) {
+                            return <option value="" disabled>No notification keys mapped</option>;
+                          }
+                          return availableKeys.map((rk) => {
+                            const kVal = getKeyValue(rk);
+                            const kLbl = getKeyLabel(rk);
+                            return (
+                              <option key={kVal} value={kVal}>
+                                {kLbl !== kVal ? `${kLbl} (${kVal})` : kVal}
+                              </option>
+                            );
+                          });
                         })()}
-                        {cfg.notificationKey && !activeKeys.some(rk => rk.key === cfg.notificationKey) && (
+                        {cfg.notificationKey && !getKeysForCategory(cfg.notificationCategory, activeCategories, activeKeys).some(k => getKeyValue(k) === cfg.notificationKey) && (
                           <option value={cfg.notificationKey}>
                             {cfg.notificationKey}
                           </option>

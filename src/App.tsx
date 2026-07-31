@@ -4,11 +4,11 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Rule, SimulationLog, BusinessFilter, CarOwnerSetting, AfterSalesRecord, NotificationScheduler, DynamicCategory, DynamicRuleKey } from './types';
+import { Rule, SimulationLog, BusinessFilter, CarOwnerSetting, AfterSalesRecord, NotificationScheduler, DynamicCategory, DynamicKey } from './types';
 import { DEFAULT_RULES } from './lib/defaultRules';
 import { DEFAULT_BUSINESS_FILTERS, DEFAULT_CAR_OWNER_SETTINGS } from './lib/defaultFilters';
 import { DEFAULT_AFTER_SALES_RECORDS, DEFAULT_SCHEDULERS } from './lib/defaultAfterSales';
-import { DEFAULT_DYNAMIC_CATEGORIES, DEFAULT_DYNAMIC_RULE_KEYS } from './lib/defaultCategories';
+import { DEFAULT_DYNAMIC_CATEGORIES, DEFAULT_DYNAMIC_NOTIFICATION_KEYS } from './lib/defaultCategories';
 import TelemetryMetricsGrid from './components/TelemetryMetricsGrid';
 import { apiService } from './services/api';
 import { SERVICE_ENDPOINTS } from './constants/apiEndpoints';
@@ -72,12 +72,12 @@ export default function App() {
   const [afterSalesRecords, setAfterSalesRecords] = useState<AfterSalesRecord[]>([]);
   const [schedulers, setSchedulers] = useState<NotificationScheduler[]>([]);
   const [categories, setCategories] = useState<DynamicCategory[]>([]);
-  const [ruleKeys, setRuleKeys] = useState<DynamicRuleKey[]>([]);
+  const [notificationKeys, setNotificationKeys] = useState<DynamicKey[]>([]);
   
   const [activeScreen, setActiveScreen] = useState<'simulator' | 'rules' | 'settings' | 'after_sales' | 'scheduler' | 'category_keys' | 'i18n'>('simulator');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [ruleToEdit, setRuleToEdit] = useState<Rule | null>(null);
-  const [activeRuleKeyFilter, setActiveRuleKeyFilter] = useState<string | null>(null);
+  const [activeNotificationKeyFilter, setActiveNotificationKeyFilter] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
@@ -230,24 +230,24 @@ export default function App() {
     }
   };
 
-  const fetchRuleKeysFromApi = async () => {
+  const fetchKeysFromApi = async () => {
     try {
-      const data = await apiService.fetchRuleKeys();
+      const data = await apiService.fetchKeys();
       if (Array.isArray(data) && data.length > 0) {
-        setRuleKeys(data);
-        localStorage.setItem('sdv_dynamic_rule_keys', JSON.stringify(data));
+        setNotificationKeys(data);
+        localStorage.setItem('sdv_dynamic_notification_keys', JSON.stringify(data));
       }
     } catch (err) {
-      console.warn('REST backend rule keys fetch unreachable, falling back to LocalStorage:', err);
+      console.warn('REST backend notification keys fetch unreachable, falling back to LocalStorage:', err);
     }
   };
 
   // Initialize and load from local storage
   useEffect(() => {
-    // 1. Rules, Categories & Rule Keys (Loads from REST API with dynamic LocalStorage fallback)
+    // 1. Rules, Categories & Notification Keys (Loads from REST API with dynamic LocalStorage fallback)
     fetchRulesFromApi();
     fetchCategoriesFromApi();
-    fetchRuleKeysFromApi();
+    fetchKeysFromApi();
 
     // 2. Simulation Logs
     const savedLogs = localStorage.getItem('sdv_simulation_logs');
@@ -321,16 +321,16 @@ export default function App() {
       setCategories(DEFAULT_DYNAMIC_CATEGORIES);
     }
 
-    // 8. Dynamic Rule Keys
-    const savedRuleKeys = localStorage.getItem('sdv_dynamic_rule_keys');
-    if (savedRuleKeys) {
+    // 8. Dynamic Notification Keys
+    const savedNotificationKeys = localStorage.getItem('sdv_dynamic_notification_keys') || localStorage.getItem('sdv_dynamic_rule_keys');
+    if (savedNotificationKeys) {
       try {
-        setRuleKeys(JSON.parse(savedRuleKeys));
+        setNotificationKeys(JSON.parse(savedNotificationKeys));
       } catch (err) {
-        setRuleKeys(DEFAULT_DYNAMIC_RULE_KEYS);
+        setNotificationKeys(DEFAULT_DYNAMIC_NOTIFICATION_KEYS);
       }
     } else {
-      setRuleKeys(DEFAULT_DYNAMIC_RULE_KEYS);
+      setNotificationKeys(DEFAULT_DYNAMIC_NOTIFICATION_KEYS);
     }
   }, []);
 
@@ -340,9 +340,9 @@ export default function App() {
     localStorage.setItem('sdv_dynamic_categories', JSON.stringify(updated));
   };
 
-  const saveRuleKeysToLocalStorage = (updated: DynamicRuleKey[]) => {
-    setRuleKeys(updated);
-    localStorage.setItem('sdv_dynamic_rule_keys', JSON.stringify(updated));
+  const saveNotificationKeysToLocalStorage = (updated: DynamicKey[]) => {
+    setNotificationKeys(updated);
+    localStorage.setItem('sdv_dynamic_notification_keys', JSON.stringify(updated));
   };
 
   const saveAfterSalesToLocalStorage = (updated: AfterSalesRecord[]) => {
@@ -550,25 +550,25 @@ export default function App() {
   const handleDeleteCategory = (key: string) => {
     const updated = categories.filter(c => c.key !== key);
     saveCategoriesToLocalStorage(updated);
-    // Unassign or delete orphaned rule keys
-    const updatedRuleKeys = ruleKeys.filter(rk => (rk.notificationCategory || (rk as any).categoryKey) !== key);
-    saveRuleKeysToLocalStorage(updatedRuleKeys);
+    // Unassign or delete orphaned notification keys
+    const updatedKeys = notificationKeys.filter(rk => (rk.notificationCategory || (rk as any).categoryKey) !== key);
+    saveNotificationKeysToLocalStorage(updatedKeys);
   };
 
-  // Dynamic Rule Keys CRUD
-  const handleAddRuleKey = (rk: DynamicRuleKey) => {
-    const updated = [...ruleKeys, rk];
-    saveRuleKeysToLocalStorage(updated);
+  // Dynamic Notification Keys CRUD
+  const handleAddNotificationKey = (nk: DynamicKey) => {
+    const updated = [...notificationKeys, nk];
+    saveNotificationKeysToLocalStorage(updated);
   };
 
-  const handleUpdateRuleKey = (rk: DynamicRuleKey) => {
-    const updated = ruleKeys.map(r => r.key === rk.key ? rk : r);
-    saveRuleKeysToLocalStorage(updated);
+  const handleUpdateNotificationKey = (nk: DynamicKey) => {
+    const updated = notificationKeys.map(r => r.key === nk.key ? nk : r);
+    saveNotificationKeysToLocalStorage(updated);
   };
 
-  const handleDeleteRuleKey = (key: string) => {
-    const updated = ruleKeys.filter(r => r.key !== key);
-    saveRuleKeysToLocalStorage(updated);
+  const handleDeleteNotificationKey = (key: string) => {
+    const updated = notificationKeys.filter(r => r.key !== key);
+    saveNotificationKeysToLocalStorage(updated);
   };
 
   // After-Sales Maintenance Records CRUD
@@ -631,9 +631,9 @@ export default function App() {
   // Load a historic log back into the active simulator panel
   const handleLoadLog = (log: SimulationLog) => {
     setActiveScreen('simulator');
-    setActiveRuleKeyFilter(log.matchedRules[0]?.notificationKey || (log.matchedRules[0] as any)?.ruleKey || 'NONE');
+    setActiveNotificationKeyFilter(log.matchedRules[0]?.notificationKey || (log.matchedRules[0] as any)?.ruleKey || 'NONE');
     triggerToast(`Loaded simulation event for VIN: ${log.vin}`);
-    setTimeout(() => setActiveRuleKeyFilter(null), 50);
+    setTimeout(() => setActiveNotificationKeyFilter(null), 50);
   };
 
   // Factory settings reset
@@ -653,7 +653,7 @@ export default function App() {
       saveAfterSalesToLocalStorage(DEFAULT_AFTER_SALES_RECORDS);
       saveSchedulersToLocalStorage(DEFAULT_SCHEDULERS);
       saveCategoriesToLocalStorage(DEFAULT_DYNAMIC_CATEGORIES);
-      saveRuleKeysToLocalStorage(DEFAULT_DYNAMIC_RULE_KEYS);
+      saveNotificationKeysToLocalStorage(DEFAULT_DYNAMIC_NOTIFICATION_KEYS);
     }
   };
 
@@ -698,9 +698,9 @@ export default function App() {
   const handleSelectRuleForTesting = (rule: Rule) => {
     const nk = rule.notificationKey || (rule as any).ruleKey;
     setActiveScreen('simulator');
-    setActiveRuleKeyFilter(nk);
+    setActiveNotificationKeyFilter(nk);
     triggerToast(`Testing rule: ${nk}`);
-    setTimeout(() => setActiveRuleKeyFilter(null), 50);
+    setTimeout(() => setActiveNotificationKeyFilter(null), 50);
   };
 
   const getNavBtnClass = (screen: string) => {
@@ -845,7 +845,7 @@ export default function App() {
                 className={getNavBtnClass('category_keys')}
               >
                 <Network className="h-4.5 w-4.5 shrink-0" />
-                {!sidebarCollapsed && <span className="truncate">NotificationCategory & Key</span>}
+                {!sidebarCollapsed && <span className="truncate">Category & Key</span>}
               </button>
 
               <button
@@ -973,7 +973,7 @@ export default function App() {
         }`}>
           <div className="flex flex-col">
             <h2 className={`text-sm font-bold font-display uppercase tracking-widest ${theme === 'concept-dark' ? 'text-white' : 'text-[#2e384d]'}`}>
-              SDV Vehicle Notification Gateway
+              Notification Gateway
             </h2>
             <p className="text-[10px] text-[#71748d] font-mono">
               CONCEPT DASHBOARD // {activeScreen.toUpperCase()}
@@ -1056,7 +1056,7 @@ export default function App() {
                       businessFilters={businessFilters}
                       userSettings={userSettings}
                       onAddLog={handleAddLog} 
-                      activeRuleKeyFilter={activeRuleKeyFilter || undefined}
+                      activeNotificationKeyFilter={activeNotificationKeyFilter || undefined}
                     />
                   </div>
                 )}
@@ -1131,14 +1131,14 @@ export default function App() {
                   <div className="space-y-4">
                     <NotificationCategoryManager
                       categories={categories}
-                      ruleKeys={ruleKeys}
+                      notificationKeys={notificationKeys}
                       rules={rules}
                       onAddCategory={handleAddCategory}
                       onUpdateCategory={handleUpdateCategory}
                       onDeleteCategory={handleDeleteCategory}
-                      onAddRuleKey={handleAddRuleKey}
-                      onUpdateRuleKey={handleUpdateRuleKey}
-                      onDeleteRuleKey={handleDeleteRuleKey}
+                      onAddNotificationKey={handleAddNotificationKey}
+                      onUpdateNotificationKey={handleUpdateNotificationKey}
+                      onDeleteNotificationKey={handleDeleteNotificationKey}
                       triggerToast={triggerToast}
                     />
                   </div>
@@ -1200,7 +1200,7 @@ export default function App() {
           onSave={handleSaveRule}
           ruleToEdit={ruleToEdit}
           categories={categories}
-          ruleKeys={ruleKeys}
+          keys={notificationKeys}
         />
       </React.Suspense>
 

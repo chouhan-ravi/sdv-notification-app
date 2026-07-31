@@ -221,20 +221,29 @@ export interface KeyTranslation {
   description?: string;
 }
 
-export interface DynamicCategory {
+export interface DynamicKey {
   key: string;
-  name: string;
-  enabled: boolean;
+  displayName?: string;
+  name?: string;
+  notificationCategory?: string;
+  enabled?: boolean;
   description?: string;
-  notificationKey: string;
+  mappedCategories?: any;
   translations?: KeyTranslation[];
 }
 
-export interface DynamicKey {
-  key: string;
-  name: string;
-  notificationCategory: string;
-  enabled: boolean;
+export interface DynamicCategory {
+  category?: string;
+  key?: string;
+  displayName?: string;
+  name?: string;
+  enabled?: boolean;
   description?: string;
+  isMandatory?: boolean;
+  mappedRules?: any;
+  mappedNotificationKeys?: DynamicKey[];
+  notificationKey?: string;
   translations?: KeyTranslation[];
 }
+
+export type DynamicNotificationKey = DynamicKey;

@@ -9,7 +9,7 @@ import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { WebSocketServer, WebSocket } from 'ws';
 import { DEFAULT_RULES } from './src/lib/defaultRules';
-import { DEFAULT_DYNAMIC_CATEGORIES, DEFAULT_DYNAMIC_RULE_KEYS } from './src/lib/defaultCategories';
+import { DEFAULT_DYNAMIC_CATEGORIES, DEFAULT_DYNAMIC_NOTIFICATION_KEYS } from './src/lib/defaultCategories';
 import { Rule } from './src/types';
 import { evaluateRulesApiEngine } from './src/lib/rulesEvaluator';
 
@@ -223,8 +223,8 @@ const RECACHE_PATHS = ['/rule-engine-service/api/v1/rules/re-cache', '/api/rules
 const RESET_PATHS = ['/rule-engine-service/api/v1/rules/reset', '/api/rules/reset', '/rules/reset'];
 const EVALUATE_PATHS = ['/rule-engine-service/api/v1/rules/evaluate', '/api/rules/evaluate', '/api/evaluate', '/evaluate'];
 const RULE_ID_PATHS = ['/rule-engine-service/api/v1/rules/:id', '/api/rules/:id', '/rules/:id'];
-const CATEGORY_PATHS = ['/rule-engine-service/api/v1/categories', '/api/categories', '/categories'];
-const RULE_KEY_PATHS = ['/rule-engine-service/api/v1/rule-keys', '/api/rule-keys', '/rule-keys', '/rule-engine-service/api/v1/notification-keys', '/api/notification-keys'];
+const CATEGORY_PATHS = ['/settings-service/api/v1/categories', '/rule-engine-service/api/v1/categories', '/api/categories', '/categories'];
+const KEY_PATHS = ['/settings-service/api/v1/keys', '/settings-service/api/v1/rule-keys', '/rule-engine-service/api/v1/rule-keys', '/api/keys', '/keys', '/rule-engine-service/api/v1/notification-keys', '/api/notification-keys'];
 
 // GET: Fetch all active rules
 app.get(RULE_PATHS, (req, res) => {
@@ -237,9 +237,9 @@ app.get(CATEGORY_PATHS, (req, res) => {
   res.json(DEFAULT_DYNAMIC_CATEGORIES);
 });
 
-// GET: Fetch notification / rule keys
-app.get(RULE_KEY_PATHS, (req, res) => {
-  res.json(DEFAULT_DYNAMIC_RULE_KEYS);
+// GET: Fetch notification keys
+app.get(KEY_PATHS, (req, res) => {
+  res.json(DEFAULT_DYNAMIC_NOTIFICATION_KEYS);
 });
 
 // POST: Re-cache rules (supports optional payload { ruleIds: [...] })
