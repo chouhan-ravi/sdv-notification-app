@@ -30,6 +30,7 @@ import {
   Copy,
   RefreshCw
 } from 'lucide-react';
+import { API_BASE_URL, SERVICE_ENDPOINTS } from '../constants/apiEndpoints';
 
 const SUPPORTED_LOCALES = [
   { code: 'es', name: 'Spanish (Español)', flag: '🇪🇸' },
@@ -138,7 +139,7 @@ export default function CategoryKeyManager({
   const fetchMatrix = async () => {
     setLoadingMatrix(true);
     try {
-      const res = await fetch('/matrix');
+      const res = await fetch(`${API_BASE_URL+SERVICE_ENDPOINTS.SETTING_SERVICE}/matrix`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
@@ -602,7 +603,7 @@ export default function CategoryKeyManager({
               }`}
             >
               <Layers className="h-4 w-4" />
-              <span>NotificationCategory ({categories.length})</span>
+              <span>Notification Category ({categories.length})</span>
             </button>
             <button
               onClick={() => setActiveTab('notification_keys')}
@@ -613,7 +614,7 @@ export default function CategoryKeyManager({
               }`}
             >
               <Key className="h-4 w-4" />
-              <span>NotificationKey ({activeNotificationKeys.length})</span>
+              <span>Notification Key ({activeNotificationKeys.length})</span>
             </button>
           </div>
         </div>
