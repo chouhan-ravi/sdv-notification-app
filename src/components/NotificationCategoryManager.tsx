@@ -195,12 +195,12 @@ export default function CategoryKeyManager({
       });
 
     if (catIsEditing) {
-      const original = categories.find(c => c.key === catIsEditing);
+      const original = categories.find(c => c.categeory === catIsEditing);
       if (!original) return;
 
       onUpdateCategory({
-        key: catIsEditing,
-        name: catName.trim(),
+        categeory: catIsEditing,
+        displayName: catName.trim(),
         enabled: original.enabled,
         description: catDesc.trim(),
         translations: translationsArray.length > 0 ? translationsArray : undefined
@@ -208,14 +208,14 @@ export default function CategoryKeyManager({
       triggerToast(`NotificationCategory "${catName}" updated successfully.`);
       setCatIsEditing(null);
     } else {
-      if (categories.some(c => c.key === formattedKey)) {
+      if (categories.some(c => c.categeory === formattedKey)) {
         triggerToast(`NotificationCategory "${formattedKey}" already exists.`);
         return;
       }
 
       onAddCategory({
-        key: formattedKey,
-        name: catName.trim(),
+        categeory: formattedKey,
+        displayName: catName.trim(),
         enabled: true,
         description: catDesc.trim(),
         translations: translationsArray.length > 0 ? translationsArray : undefined
@@ -271,7 +271,7 @@ export default function CategoryKeyManager({
 
       handleUpdateNk({
         key: rkIsEditing,
-        name: rkName.trim(),
+        displayName: rkName.trim(),
         notificationCategory: rkCategoryKey,
         enabled: original.enabled,
         description: rkDesc.trim(),
@@ -287,7 +287,7 @@ export default function CategoryKeyManager({
 
       handleAddNk({
         key: formattedKey,
-        name: rkName.trim(),
+        displayName: rkName.trim(),
         notificationCategory: rkCategoryKey,
         enabled: true,
         description: rkDesc.trim(),
@@ -314,13 +314,13 @@ export default function CategoryKeyManager({
 
   // Start Category Edit
   const startCatEdit = (cat: DynamicCategory) => {
-    if (isCategoryInUse(cat.key)) {
-      triggerToast(`Operation Blocked: NotificationCategory "${cat.key}" is mapped in active RuleConfig rules.`);
+    if (isCategoryInUse(cat.categeory)) {
+      triggerToast(`Operation Blocked: NotificationCategory "${cat.categeory}" is mapped in active RuleConfig rules.`);
       return;
     }
-    setCatIsEditing(cat.key);
-    setCatKey(cat.key);
-    setCatName(cat.name);
+    setCatIsEditing(cat.categeory);
+    setCatKey(cat.categeory);
+    setCatName(cat.displayName);
     setCatDesc(cat.description || '');
 
     const initialTrans: Record<string, { name: string; description: string }> = {
@@ -353,7 +353,7 @@ export default function CategoryKeyManager({
     }
     setRkIsEditing(rk.key);
     setRkKey(rk.key);
-    setRkName(rk.name);
+    setRkName(rk.displayName);
     setRkCategoryKey(rk.notificationCategory || (rk as any).categoryKey);
     setRkDesc(rk.description || '');
 
@@ -381,15 +381,15 @@ export default function CategoryKeyManager({
 
   // Toggle NotificationCategory
   const handleToggleCategory = (cat: DynamicCategory) => {
-    if (isCategoryInUse(cat.key)) {
-      triggerToast(`Operation Blocked: NotificationCategory "${cat.key}" is mapped in active RuleConfig rules.`);
+    if (isCategoryInUse(cat.categeory)) {
+      triggerToast(`Operation Blocked: NotificationCategory "${cat.categeory}" is mapped in active RuleConfig rules.`);
       return;
     }
     onUpdateCategory({
       ...cat,
       enabled: !cat.enabled
     });
-    triggerToast(`NotificationCategory "${cat.name}" is now ${!cat.enabled ? 'Enabled' : 'Disabled'}.`);
+    triggerToast(`NotificationCategory "${cat.displayName}" is now ${!cat.enabled ? 'Enabled' : 'Disabled'}.`);
   };
 
   // Toggle NotificationKey
@@ -402,7 +402,7 @@ export default function CategoryKeyManager({
       ...rk,
       enabled: !rk.enabled
     });
-    triggerToast(`NotificationKey "${rk.name}" is now ${!rk.enabled ? 'Enabled' : 'Disabled'}.`);
+    triggerToast(`NotificationKey "${rk.displayName}" is now ${!rk.enabled ? 'Enabled' : 'Disabled'}.`);
   };
 
   // Delete Category
@@ -442,21 +442,21 @@ export default function CategoryKeyManager({
       ...rk,
       notificationCategory: targetCat
     });
-    triggerToast(`Moved NotificationKey "${rk.name}" to NotificationCategory "${targetCat}".`);
+    triggerToast(`Moved NotificationKey "${rk.displayName}" to NotificationCategory "${targetCat}".`);
     setQuickMoveRk(null);
   };
 
   // Filters
   const filteredCategories = categories.filter(c => 
-    c.key.toLowerCase().includes(catSearch.toLowerCase()) ||
-    c.name.toLowerCase().includes(catSearch.toLowerCase()) ||
+    c.categeory.toLowerCase().includes(catSearch.toLowerCase()) ||
+    c.displayName.toLowerCase().includes(catSearch.toLowerCase()) ||
     (c.description || '').toLowerCase().includes(catSearch.toLowerCase())
   );
 
   const filteredRuleKeys = activeNotificationKeys.filter(r => {
     const matchesSearch = 
       r.key.toLowerCase().includes(rkSearch.toLowerCase()) ||
-      r.name.toLowerCase().includes(rkSearch.toLowerCase()) ||
+      r.displayName.toLowerCase().includes(rkSearch.toLowerCase()) ||
       (r.description || '').toLowerCase().includes(rkSearch.toLowerCase());
     const rkCat = r.notificationCategory || (r as any).categoryKey;
     const matchesCategory = rkCategoryFilter === 'ALL' || rkCat === rkCategoryFilter;
@@ -475,7 +475,7 @@ export default function CategoryKeyManager({
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-100 tracking-tight flex items-center space-x-2 font-display">
-                <span>NotificationCategory & NotificationKey Registry</span>
+                <span>Notification Category & Key Registry</span>
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 mt-1 leading-relaxed">
                 Configure notification categories, unique alert keys, and manage their relationships directly mapped in system-wide <strong className="text-indigo-300 font-mono">RuleConfig</strong> rules.
@@ -564,13 +564,13 @@ export default function CategoryKeyManager({
             {/* Grid of Category Trees */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {categories.map((cat) => {
-                const isCatLocked = isCategoryInUse(cat.key);
-                const relatedKeys = activeNotificationKeys.filter(rk => (rk.notificationCategory || (rk as any).categoryKey) === cat.key);
-                const mappedRuleConfigs = getRuleConfigsForCategory(cat.key);
+                const isCatLocked = isCategoryInUse(cat.categeory);
+                const relatedKeys = activeNotificationKeys.filter(rk => (rk.notificationCategory || (rk as any).categoryKey) === cat.categeory);
+                const mappedRuleConfigs = getRuleConfigsForCategory(cat.categeory);
 
                 return (
                   <div 
-                    key={cat.key} 
+                    key={cat.categeory} 
                     className={`border rounded-xl overflow-hidden transition duration-200 ${
                       !cat.enabled 
                         ? 'bg-slate-950/20 border-slate-900 opacity-60' 
@@ -584,14 +584,14 @@ export default function CategoryKeyManager({
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center space-x-2">
                           <span className="text-xs font-mono font-bold text-amber-400 bg-amber-950/40 border border-amber-900/40 px-2 py-0.5 rounded">
-                            {cat.key}
+                            {cat.categeory}
                           </span>
                           {!cat.enabled && (
                             <span className="text-xs font-mono px-2 py-0.5 bg-slate-800 text-slate-400 rounded uppercase">Disabled</span>
                           )}
                         </div>
                         <h3 className="text-sm font-bold text-slate-100 truncate mt-1">
-                          {cat.name}
+                          {cat.displayName}
                         </h3>
                       </div>
 
@@ -654,7 +654,7 @@ export default function CategoryKeyManager({
                                         <Lock className="h-3 w-3 text-rose-400 shrink-0" title={`Locked by RuleConfig in: ${rkConfigs[0]?.ruleName || 'Rule'}`} />
                                       )}
                                     </div>
-                                    <div className="text-xs text-slate-400 truncate mt-0.5">{rk.name}</div>
+                                    <div className="text-xs text-slate-400 truncate mt-0.5">{rk.key}</div>
                                   </div>
 
                                   {/* Actions */}
@@ -667,8 +667,8 @@ export default function CategoryKeyManager({
                                           className="bg-slate-950 border border-slate-700 text-xs text-slate-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-500"
                                         >
                                           <option value="" disabled>Move to...</option>
-                                          {categories.filter(c => c.key !== cat.key).map(c => (
-                                            <option key={c.key} value={c.key}>{c.key}</option>
+                                          {categories.filter(c => c.categeory !== cat.categeory).map(c => (
+                                            <option key={c.categeory} value={c.categeory}>{c.categeory}</option>
                                           ))}
                                         </select>
                                         <button 
@@ -697,7 +697,7 @@ export default function CategoryKeyManager({
                                           onClick={() => {
                                             setRkIsEditing(rk.key);
                                             setRkKey(rk.key);
-                                            setRkName(rk.name);
+                                            setRkName(rk.displayName);
                                             setRkCategoryKey(rk.notificationCategory || (rk as any).categoryKey);
                                             setRkDesc(rk.description || '');
                                             setActiveTab('notification_keys');
@@ -992,24 +992,24 @@ export default function CategoryKeyManager({
                     </tr>
                   ) : (
                     filteredCategories.map((cat) => {
-                      const isLocked = isCategoryInUse(cat.key);
-                      const mappedConfigs = getRuleConfigsForCategory(cat.key);
+                      const isLocked = isCategoryInUse(cat.categeory);
+                      const mappedConfigs = getRuleConfigsForCategory(cat.categeory);
 
                       return (
                         <tr 
-                          key={cat.key} 
+                          key={cat.categeory} 
                           className={`hover:bg-slate-900/50 transition duration-150 ${!cat.enabled ? 'opacity-50 bg-slate-950/20' : ''}`}
                         >
                           {/* Code Key */}
                           <td className="p-4 font-mono font-bold text-slate-200">
                             <span className="px-2.5 py-1 bg-slate-900 border border-slate-800 rounded text-xs text-amber-400 block w-fit">
-                              {cat.key}
+                              {cat.categeory}
                             </span>
                           </td>
 
                           {/* Display Name */}
                           <td className="p-4 max-w-md">
-                            <div className="font-bold text-slate-100 text-sm">{cat.name}</div>
+                            <div className="font-bold text-slate-100 text-sm">{cat.displayName}</div>
                             {cat.description && (
                               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                                 {cat.description}
@@ -1068,7 +1068,7 @@ export default function CategoryKeyManager({
                                     <Edit className="h-4 w-4" />
                                   </button>
                                   <button
-                                    onClick={() => handleCatDelete(cat.key)}
+                                    onClick={() => handleCatDelete(cat.categeory)}
                                     className="p-2 bg-slate-900 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-800 hover:border-rose-900/40 rounded-lg transition"
                                     title="Delete NotificationCategory"
                                   >
@@ -1112,9 +1112,9 @@ export default function CategoryKeyManager({
                   onChange={(e) => setRkCategoryFilter(e.target.value)}
                   className="bg-slate-950 border border-slate-800 text-xs text-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 font-mono"
                 >
-                  <option value="ALL">🔍 All NotificationCategory Items</option>
+                  <option value="ALL">🔍 All Notification Category Items</option>
                   {categories.map(c => (
-                    <option key={c.key} value={c.key}>{c.key}</option>
+                    <option key={c.categeory} value={c.categeory}>{c.categeory}</option>
                   ))}
                 </select>
               </div>
@@ -1125,7 +1125,7 @@ export default function CategoryKeyManager({
                     setRkIsEditing(null);
                     setRkKey('');
                     setRkName('');
-                    setRkCategoryKey(categories[0]?.key || '');
+                    setRkCategoryKey(categories[0]?.categeory || '');
                     setRkDesc('');
                     setShowRkForm(true);
                   }}
@@ -1157,7 +1157,7 @@ export default function CategoryKeyManager({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-300 font-mono mb-2 uppercase tracking-wider">
-                      NOTIFICATIONKEY CODE
+                      NOTIFICATION KEY CODE
                     </label>
                     <input
                       type="text"
@@ -1196,7 +1196,7 @@ export default function CategoryKeyManager({
                     >
                       <option value="" disabled>Select parent category...</option>
                       {categories.map(c => (
-                        <option key={c.key} value={c.key}>{c.key}</option>
+                        <option key={c.categeory} value={c.categeory}>{c.categeory}</option>
                       ))}
                     </select>
                   </div>
@@ -1260,7 +1260,7 @@ export default function CategoryKeyManager({
                     filteredRuleKeys.map((rk) => {
                       const isLocked = isNotificationKeyInUse(rk.key);
                       const rkCat = rk.notificationCategory || (rk as any).categoryKey;
-                      const parentCat = categories.find(c => c.key === rkCat);
+                      const parentCat = categories.find(c => c.categeory === rkCat);
                       const mappedConfigs = getRuleConfigsForKey(rk.key);
 
                       return (
@@ -1289,7 +1289,7 @@ export default function CategoryKeyManager({
 
                           {/* Display Name */}
                           <td className="p-4 max-w-md">
-                            <div className="font-bold text-slate-100 text-sm">{rk.name}</div>
+                            <div className="font-bold text-slate-100 text-sm">{rk.displayName}</div>
                             {rk.description && (
                               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                                 {rk.description}

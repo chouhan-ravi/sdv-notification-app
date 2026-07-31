@@ -63,7 +63,7 @@ export interface Rule {
   notificationTitle?: string;
   notificationBody?: string;
   sound?: string;
-  dataMetadata?: { key: string; value: string }[];
+  dataMetadata?: RuleMetadataItem[];
   MessageType?: string;
   NotificationType?: string;
   translations?: RuleTranslation[];
@@ -224,26 +224,18 @@ export interface KeyTranslation {
 export interface DynamicKey {
   key: string;
   displayName?: string;
-  name?: string;
   notificationCategory?: string;
   enabled?: boolean;
   description?: string;
-  mappedCategories?: any;
   translations?: KeyTranslation[];
 }
 
 export interface DynamicCategory {
-  category?: string;
-  key?: string;
+  categeory?: string;
   displayName?: string;
-  name?: string;
   enabled?: boolean;
   description?: string;
   isMandatory?: boolean;
-  mappedRules?: any;
   mappedNotificationKeys?: DynamicKey[];
-  notificationKey?: string;
   translations?: KeyTranslation[];
 }
-
-export type DynamicNotificationKey = DynamicKey;
