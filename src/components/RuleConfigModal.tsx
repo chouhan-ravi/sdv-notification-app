@@ -6,7 +6,6 @@
 import React, { useState, useEffect } from 'react';
 import { Rule, RuleConfigItem, RuleConditionItem, RuleOperator, DynamicCategory, DynamicKey } from '../types';
 import { X, Plus, Trash2, Save, HelpCircle, RefreshCw } from 'lucide-react';
-import { apiService } from '../services/api';
 import { DEFAULT_DYNAMIC_CATEGORIES, DEFAULT_DYNAMIC_NOTIFICATION_KEYS } from '../lib/defaultCategories';
 
 interface RuleFormModalProps {
@@ -31,11 +30,6 @@ export default function RuleFormModal({
   const [enabled, setEnabled] = useState(true);
   const [description, setDescription] = useState('');
   
-  // API fetched states for Categories & Notification Keys
-  const [fetchedCategories, setFetchedCategories] = useState<DynamicCategory[]>([]);
-  const [fetchedKeys, setFetchedKeys] = useState<DynamicKey[]>([]);
-  const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
-
   // Configs array
   const [configs, setConfigs] = useState<RuleConfigItem[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
@@ -59,32 +53,8 @@ export default function RuleFormModal({
     return fallbackKeysList;
   };
 
-  // Execute GET /categories API call on modal open (provides categories & nested mappedNotificationKeys)
-  useEffect(() => {
-    if (isOpen) {
-      setIsLoadingMetadata(true);
-      apiService.fetchCategories()
-        .then((data) => {
-          if (Array.isArray(data) && data.length > 0) {
-            setFetchedCategories(data);
-          }
-        })
-        .catch((err) => {
-          console.warn('API fetch for GET /categories in Rule Modal failed:', err);
-        })
-        .finally(() => {
-          setIsLoadingMetadata(false);
-        });
-    }
-  }, [isOpen]);
-
-  const activeCategories = fetchedCategories.length > 0
-    ? fetchedCategories
-    : (categories.length > 0 ? categories : DEFAULT_DYNAMIC_CATEGORIES);
-
-  const activeKeys = fetchedKeys.length > 0
-    ? fetchedKeys
-    : (keys.length > 0 ? keys : DEFAULT_DYNAMIC_NOTIFICATION_KEYS);
+  const activeCategories = categories.length > 0 ? categories : DEFAULT_DYNAMIC_CATEGORIES;
+  const activeKeys = keys.length > 0 ? keys : DEFAULT_DYNAMIC_NOTIFICATION_KEYS;
 
   useEffect(() => {
     if (ruleToEdit) {
@@ -449,9 +419,8 @@ export default function RuleFormModal({
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 font-mono uppercase mb-1 flex items-center justify-between">
+                      <label className="block text-[10px] font-bold text-slate-500 font-mono uppercase mb-1">
                         <span>NOTIFICATION CATEGORY</span>
-                        {isLoadingMetadata && <RefreshCw className="h-2.5 w-2.5 animate-spin text-indigo-400" />}
                       </label>
                       <select
                         required

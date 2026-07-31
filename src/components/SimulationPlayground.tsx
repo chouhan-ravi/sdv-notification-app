@@ -493,7 +493,7 @@ export default function Simulator({
                 </div>
 
                 <div className="bg-slate-950 border border-slate-850 rounded-xl p-3 font-mono text-[11px] leading-relaxed text-emerald-300 overflow-y-auto max-h-[450px]">
-                  <pre>{JSON.stringify(apiResponseJson, null, 2)}</pre>
+                  <pre className="whitespace-pre-wrap break-all">{JSON.stringify(apiResponseJson, null, 2)}</pre>
                 </div>
               </div>
             )}

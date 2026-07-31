@@ -10,6 +10,7 @@ import { createServer as createViteServer } from 'vite';
 import { WebSocketServer, WebSocket } from 'ws';
 import { DEFAULT_RULES } from './src/lib/defaultRules';
 import { DEFAULT_DYNAMIC_CATEGORIES, DEFAULT_DYNAMIC_NOTIFICATION_KEYS } from './src/lib/defaultCategories';
+import { DEFAULT_SCHEDULERS } from './src/lib/defaultAfterSales';
 import { Rule } from './src/types';
 import { evaluateRulesApiEngine } from './src/lib/rulesEvaluator';
 
@@ -225,6 +226,8 @@ const EVALUATE_PATHS = ['/rule-engine-service/api/v1/rules/evaluate', '/api/rule
 const RULE_ID_PATHS = ['/rule-engine-service/api/v1/rules/:id', '/api/rules/:id', '/rules/:id'];
 const CATEGORY_PATHS = ['/settings-service/api/v1/categories', '/rule-engine-service/api/v1/categories', '/api/categories', '/categories'];
 const KEY_PATHS = ['/settings-service/api/v1/keys', '/settings-service/api/v1/rule-keys', '/rule-engine-service/api/v1/rule-keys', '/api/keys', '/keys', '/rule-engine-service/api/v1/notification-keys', '/api/notification-keys'];
+const SCHEDULER_PATHS = ['/rule-engine-service/api/v1/schedulers', '/api/schedulers', '/schedulers'];
+const TRIGGER_SCHEDULER_PATHS = ['/rule-engine-service/api/v1/schedulers/:id/trigger', '/api/schedulers/:id/trigger'];
 
 // GET: Fetch all active rules
 app.get(RULE_PATHS, (req, res) => {
@@ -240,6 +243,23 @@ app.get(CATEGORY_PATHS, (req, res) => {
 // GET: Fetch notification keys
 app.get(KEY_PATHS, (req, res) => {
   res.json(DEFAULT_DYNAMIC_NOTIFICATION_KEYS);
+});
+
+// GET: Fetch schedulers
+app.get(SCHEDULER_PATHS, (req, res) => {
+  res.json(DEFAULT_SCHEDULERS);
+});
+
+// POST: Trigger scheduler execution
+app.post(TRIGGER_SCHEDULER_PATHS, (req, res) => {
+  const { id } = req.params;
+  console.log(`[REST API] Triggered proactive scheduler execution for ID: ${id}`);
+  res.json({
+    status: 'SUCCESS',
+    message: `Proactive scheduler execution triggered for ID: ${id}`,
+    id,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // POST: Re-cache rules (supports optional payload { ruleIds: [...] })

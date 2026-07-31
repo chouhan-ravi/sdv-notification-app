@@ -198,7 +198,14 @@ export default function App() {
     };
   }, []);
 
-  const fetchRulesFromApi = async () => {
+  const lastFetchRef = useRef<{ [key: string]: number }>({});
+
+  const fetchRulesFromApi = async (force = false) => {
+    const now = Date.now();
+    if (!force && lastFetchRef.current['rules'] && now - lastFetchRef.current['rules'] < 2000) {
+      return;
+    }
+    lastFetchRef.current['rules'] = now;
     try {
       const data = await apiService.get<Rule[]>(SERVICE_ENDPOINTS.RULE_SERVICE+'/rules');
       setRules(data);
@@ -218,7 +225,12 @@ export default function App() {
     }
   };
 
-  const fetchCategoriesFromApi = async () => {
+  const fetchCategoriesFromApi = async (force = false) => {
+    const now = Date.now();
+    if (!force && lastFetchRef.current['categories'] && now - lastFetchRef.current['categories'] < 2000) {
+      return;
+    }
+    lastFetchRef.current['categories'] = now;
     try {
       const data = await apiService.fetchCategories();
       if (Array.isArray(data) && data.length > 0) {
@@ -230,7 +242,12 @@ export default function App() {
     }
   };
 
-  const fetchKeysFromApi = async () => {
+  const fetchKeysFromApi = async (force = false) => {
+    const now = Date.now();
+    if (!force && lastFetchRef.current['keys'] && now - lastFetchRef.current['keys'] < 2000) {
+      return;
+    }
+    lastFetchRef.current['keys'] = now;
     try {
       const data = await apiService.fetchKeys();
       if (Array.isArray(data) && data.length > 0) {
@@ -241,6 +258,52 @@ export default function App() {
       console.warn('REST backend notification keys fetch unreachable, falling back to LocalStorage:', err);
     }
   };
+
+  const fetchSchedulersFromApi = async (force = false) => {
+    const now = Date.now();
+    if (!force && lastFetchRef.current['schedulers'] && now - lastFetchRef.current['schedulers'] < 2000) {
+      return;
+    }
+    lastFetchRef.current['schedulers'] = now;
+    try {
+      const data = await apiService.fetchSchedulers();
+      if (Array.isArray(data) && data.length > 0) {
+        setSchedulers(data);
+        localStorage.setItem('sdv_notification_schedulers', JSON.stringify(data));
+      }
+    } catch (err) {
+      console.warn('REST backend schedulers fetch unreachable, falling back to LocalStorage:', err);
+    }
+  };
+
+  // Trigger page-specific API calls when activeScreen changes
+  useEffect(() => {
+    switch (activeScreen) {
+      case 'simulator':
+      case 'rules':
+      case 'settings':
+        fetchRulesFromApi();
+        fetchCategoriesFromApi();
+        fetchKeysFromApi();
+        break;
+      case 'category_keys':
+        fetchCategoriesFromApi();
+        fetchKeysFromApi();
+        fetchRulesFromApi();
+        break;
+      case 'scheduler':
+        fetchSchedulersFromApi();
+        fetchRulesFromApi();
+        break;
+      case 'after_sales':
+      case 'i18n':
+        fetchRulesFromApi();
+        fetchKeysFromApi();
+        break;
+      default:
+        break;
+    }
+  }, [activeScreen]);
 
   // Initialize and load from local storage
   useEffect(() => {
@@ -391,7 +454,7 @@ export default function App() {
     try {
       await apiService.put<Rule>(SERVICE_ENDPOINTS.RULE_SERVICE+`/rules/${id}`, updatedRule);
       triggerToast(`Rule "${rule.name}" ${!rule.enabled ? 'enabled' : 'disabled'} successfully via PUT API`);
-      await fetchRulesFromApi();
+      await fetchRulesFromApi(true);
     } catch (err) {
       console.error('API toggle failed, falling back to local storage', err);
       const updated = rules.map(r => r.id === id ? updatedRule : r);
@@ -408,7 +471,7 @@ export default function App() {
       try {
         await apiService.delete(SERVICE_ENDPOINTS.RULE_SERVICE+`/rules/${id}`);
         triggerToast('Rule deleted successfully via DELETE API');
-        await fetchRulesFromApi();
+        await fetchRulesFromApi(true);
       } catch (err) {
         console.error('API delete failed, falling back to local storage', err);
         const updated = rules.filter(r => r.id !== id);
@@ -430,7 +493,7 @@ export default function App() {
     try {
       await apiService.post<Rule>(SERVICE_ENDPOINTS.RULE_SERVICE+'/rules', copy);
       triggerToast(`Duplicated successfully via POST API`);
-      await fetchRulesFromApi();
+      await fetchRulesFromApi(true);
     } catch (err) {
       console.error('API duplication failed, falling back to local storage', err);
       const updated = [...rules, copy];
@@ -460,7 +523,7 @@ export default function App() {
         await apiService.post<Rule>(SERVICE_ENDPOINTS.RULE_SERVICE+'/rules', savedRule);
         triggerToast('New rule created successfully via POST API');
       }
-      await fetchRulesFromApi();
+      await fetchRulesFromApi(true);
     } catch (err: any) {
       console.error('REST API saving failed, resorting to local storage state fallback', err);
       let updated: Rule[];
@@ -827,7 +890,7 @@ export default function App() {
                 className={getNavBtnClass('simulator')}
               >
                 <Terminal className="h-4.5 w-4.5 shrink-0" />
-                {!sidebarCollapsed && <span className="truncate">Simulation Playground</span>}
+                {!sidebarCollapsed && <span className="truncate">Simulation Console</span>}
               </button>
 
               <button
