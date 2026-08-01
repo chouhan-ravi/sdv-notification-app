@@ -1337,6 +1337,8 @@ export default function App() {
                             onAddNotificationKey={handleAddNotificationKey}
                             onUpdateNotificationKey={handleUpdateNotificationKey}
                             onDeleteNotificationKey={handleDeleteNotificationKey}
+                            onRefreshCategories={() => fetchCategoriesFromApi(true)}
+                            onRefreshKeys={() => fetchKeysFromApi(true)}
                             triggerToast={triggerToast}
                           />
                         </div>

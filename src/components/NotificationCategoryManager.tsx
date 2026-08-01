@@ -51,6 +51,8 @@ interface CategoryKeyManagerProps {
   onAddNotificationKey: (nk: DynamicKey) => void;
   onUpdateNotificationKey: (nk: DynamicKey) => void;
   onDeleteNotificationKey: (key: string) => void;
+  onRefreshCategories?: () => void;
+  onRefreshKeys?: () => void;
   triggerToast: (msg: string) => void;
 }
 
@@ -64,6 +66,8 @@ export default function CategoryKeyManager({
   onAddNotificationKey,
   onUpdateNotificationKey,
   onDeleteNotificationKey,
+  onRefreshCategories,
+  onRefreshKeys,
   triggerToast
 }: CategoryKeyManagerProps) {
   const activeNotificationKeys = notificationKeys;
@@ -646,7 +650,11 @@ export default function CategoryKeyManager({
           
           <div className="flex bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 shrink-0">
             <button
-              onClick={() => setActiveTab('visual')}
+              onClick={async () => {
+                setActiveTab('visual');
+                await fetchRealmMatrixData(selectedRealmScope);
+                triggerToast(`Fetched relationship matrix (GET /matrix/${selectedRealmScope})`);
+              }}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition uppercase tracking-wider flex items-center space-x-2 ${
                 activeTab === 'visual'
                   ? 'bg-indigo-600 text-white shadow-md'
@@ -657,7 +665,19 @@ export default function CategoryKeyManager({
               <span>Relationships Map</span>
             </button>
             <button
-              onClick={() => setActiveTab('categories')}
+              onClick={async () => {
+                setActiveTab('categories');
+                try {
+                  if (onRefreshCategories) {
+                    onRefreshCategories();
+                  } else {
+                    await apiService.fetchCategories();
+                  }
+                  triggerToast("Fetched categories (GET /categories)");
+                } catch (err) {
+                  console.warn("Error fetching categories:", err);
+                }
+              }}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition uppercase tracking-wider flex items-center space-x-2 ${
                 activeTab === 'categories'
                   ? 'bg-indigo-600 text-white shadow-md'
@@ -668,7 +688,19 @@ export default function CategoryKeyManager({
               <span>Notification Category ({categories.length})</span>
             </button>
             <button
-              onClick={() => setActiveTab('notification_keys')}
+              onClick={async () => {
+                setActiveTab('notification_keys');
+                try {
+                  if (onRefreshKeys) {
+                    onRefreshKeys();
+                  } else {
+                    await apiService.fetchKeys();
+                  }
+                  triggerToast("Fetched notification keys (GET /keys)");
+                } catch (err) {
+                  console.warn("Error fetching keys:", err);
+                }
+              }}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition uppercase tracking-wider flex items-center space-x-2 ${
                 (activeTab === 'notification_keys' || activeTab === ( 'rule_keys' as any))
                   ? 'bg-indigo-600 text-white shadow-md'
