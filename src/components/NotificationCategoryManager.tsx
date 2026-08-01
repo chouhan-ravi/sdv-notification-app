@@ -636,7 +636,7 @@ export default function CategoryKeyManager({
           
           <div className="flex bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 shrink-0">
             <button
-              onClick={() => { setActiveTab('visual'); fetchMatrix(); }}
+              onClick={() => setActiveTab('visual')}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition uppercase tracking-wider flex items-center space-x-2 ${
                 activeTab === 'visual'
                   ? 'bg-indigo-600 text-white shadow-md'
@@ -719,11 +719,7 @@ export default function CategoryKeyManager({
                   <select
                     id="realm-matrix-select"
                     value={selectedRealmScope}
-                    onChange={(e) => {
-                      const newRealmVal = e.target.value;
-                      setSelectedRealmScope(newRealmVal);
-                      fetchRealmMatrixData(newRealmVal);
-                    }}
+                    onChange={(e) => setSelectedRealmScope(e.target.value)}
                     className="bg-slate-950 text-cyan-300 font-mono text-xs font-bold px-2.5 py-1 rounded border border-slate-800 focus:outline-none focus:border-cyan-500 transition cursor-pointer w-full sm:w-auto"
                   >
                     <option value="us">us (United States)</option>
