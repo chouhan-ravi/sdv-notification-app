@@ -651,8 +651,11 @@ export default function CategoryKeyManager({
           <div className="flex bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 shrink-0">
             <button
               onClick={async () => {
-                setActiveTab('visual');
-                await fetchRealmMatrixData(selectedRealmScope);
+                if (activeTab === 'visual') {
+                  await fetchRealmMatrixData(selectedRealmScope);
+                } else {
+                  setActiveTab('visual');
+                }
                 triggerToast(`Fetched relationship matrix (GET /matrix/${selectedRealmScope})`);
               }}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition uppercase tracking-wider flex items-center space-x-2 ${
