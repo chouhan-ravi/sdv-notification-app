@@ -25,6 +25,7 @@ const AfterSalesMaintenanceManager = React.lazy(() => import('./components/After
 const ProactiveNotificationScheduler = React.lazy(() => import('./components/ProactiveNotificationScheduler'));
 const NotificationCategoryManager = React.lazy(() => import('./components/NotificationCategoryManager'));
 const LocalizationManager = React.lazy(() => import('./components/LocalizationManager'));
+const LoginPage = React.lazy(() => import('./components/LoginPage'));
 
 function ScreenSkeleton() {
   return (
@@ -62,7 +63,8 @@ import {
   Clock,
   Network,
   Globe,
-  Home
+  Home,
+  LogOut
 } from 'lucide-react';
 
 export default function App() {
@@ -79,11 +81,43 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Authentication State
+  const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(() => {
+    const saved = localStorage.getItem('sdv_auth_user');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  const isAuthenticated = !!user;
+
+  const handleLoginSuccess = (userData: { name: string; email: string; role: string }) => {
+    setUser(userData);
+    localStorage.setItem('sdv_auth_user', JSON.stringify(userData));
+    setToastMsg(`Welcome, ${userData.name}!`);
+    setTimeout(() => setToastMsg(null), 3000);
+    const targetRoute = localStorage.getItem('sdv_last_route') || '/simulator';
+    navigate(targetRoute === '/login' ? '/simulator' : targetRoute, { replace: true });
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('sdv_auth_user');
+    setToastMsg('Logged out from SDV Gateway');
+    setTimeout(() => setToastMsg(null), 3000);
+    navigate('/login', { replace: true });
+  };
+
   // Route persistence across browser refreshes
   const savedRoute = localStorage.getItem('sdv_last_route') || '/simulator';
 
   useEffect(() => {
-    if (location.pathname && location.pathname !== '/') {
+    if (location.pathname && location.pathname !== '/' && location.pathname !== '/login') {
       localStorage.setItem('sdv_last_route', location.pathname);
     }
   }, [location.pathname]);
@@ -799,6 +833,18 @@ export default function App() {
     return `w-full flex items-center ${padding} text-left rounded-lg text-[11px] font-bold transition text-slate-400 hover:text-white hover:bg-white/10`;
   };
 
+  // Auth Gate: Render Login Page if user is not authenticated
+  if (!isAuthenticated) {
+    return (
+      <React.Suspense fallback={<ScreenSkeleton />}>
+        <Routes>
+          <Route path="/login" element={<LoginPage onLoginSuccess={handleLoginSuccess} theme={theme} />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </React.Suspense>
+    );
+  }
+
   return (
     <div id="sdv-app-root" className={`h-screen flex flex-col lg:flex-row overflow-hidden font-sans selection:bg-[#5969ff]/30 selection:text-slate-900 transition-colors duration-200 ${theme === 'concept-dark' ? 'theme-dark bg-[#0e0c28] text-slate-100' : 'bg-[#f4f5f8] text-[#2e384d]'}`}>
       
@@ -1094,19 +1140,38 @@ export default function App() {
               )}
             </button>
 
-            {/* PROFILE SECTION */}
-            <div className={`flex items-center space-x-2 border rounded-xl px-3 py-1.5 shadow-sm ${
-              theme === 'concept-dark' 
-                ? 'bg-[#0e0c28] border-[#25234e] text-white' 
-                : 'bg-[#f4f5f8] border-[#e6e6f2] text-[#2e384d]'
-            }`}>
-              <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-[#5969ff] to-[#2ec5d3] flex items-center justify-center text-white text-[10px] font-bold shadow-inner">
-                RC
+            {/* PROFILE SECTION & LOGOUT BUTTON */}
+            <div className="flex items-center space-x-2">
+              <div className={`flex items-center space-x-2 border rounded-xl px-3 py-1.5 shadow-sm ${
+                theme === 'concept-dark' 
+                  ? 'bg-[#0e0c28] border-[#25234e] text-white' 
+                  : 'bg-[#f4f5f8] border-[#e6e6f2] text-[#2e384d]'
+              }`}>
+                <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-[#5969ff] to-[#2ec5d3] flex items-center justify-center text-white text-[10px] font-bold shadow-inner uppercase">
+                  {user?.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2) : 'SD'}
+                </div>
+                <div className="hidden sm:flex flex-col text-left">
+                  <span className={`text-[10px] font-bold leading-none ${theme === 'concept-dark' ? 'text-white' : 'text-[#2e384d]'}`}>
+                    {user?.name || 'Automotive Engineer'}
+                  </span>
+                  <span className="text-[8px] font-mono text-[#71748d] truncate max-w-[120px]">
+                    {user?.email || 'telematics@cloud.io'}
+                  </span>
+                </div>
               </div>
-              <div className="hidden sm:flex flex-col text-left">
-                <span className={`text-[10px] font-bold leading-none ${theme === 'concept-dark' ? 'text-white' : 'text-[#2e384d]'}`}>Ravi Chouhan</span>
-                <span className="text-[8px] font-mono text-[#71748d]">usr_ravi_55</span>
-              </div>
+
+              <button
+                onClick={handleLogout}
+                title="Sign Out of SDV Gateway"
+                className={`p-2 rounded-xl border transition flex items-center justify-center shadow-sm text-xs font-bold font-mono ${
+                  theme === 'concept-dark'
+                    ? 'bg-red-950/40 hover:bg-red-900/60 border-red-900/50 text-red-400 hover:text-red-300'
+                    : 'bg-red-50 hover:bg-red-100 border-red-200 text-red-600 hover:text-red-700'
+                }`}
+              >
+                <LogOut className="h-4 w-4 shrink-0 sm:mr-1" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
             </div>
           </div>
         </header>
@@ -1301,7 +1366,11 @@ export default function App() {
                       </RouteDataLoader>
                     }
                   />
-                  <Route path="*" element={<Navigate to={savedRoute} replace />} />
+                  <Route
+                    path="/login"
+                    element={<Navigate to={savedRoute !== '/login' ? savedRoute : '/simulator'} replace />}
+                  />
+                  <Route path="*" element={<Navigate to={savedRoute !== '/login' ? savedRoute : '/simulator'} replace />} />
                 </Routes>
               </React.Suspense>
 

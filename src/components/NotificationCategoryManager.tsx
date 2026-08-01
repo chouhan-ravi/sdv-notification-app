@@ -797,7 +797,7 @@ export default function CategoryKeyManager({
                           <div className="flex items-center justify-between text-xs font-bold font-mono text-indigo-400 uppercase tracking-wide">
                             <span className="flex items-center space-x-1">
                               <Sliders className="h-3.5 w-3.5" />
-                              <span>mappedRules ({mappedRules.length})</span>
+                              <span>Mapped Rules ({mappedRules.length})</span>
                             </span>
                           </div>
 
