@@ -4,12 +4,14 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Rule, SimulationLog, BusinessFilter, CarOwnerSetting, AfterSalesRecord, NotificationScheduler, DynamicCategory, DynamicKey } from './types';
 import { DEFAULT_RULES } from './lib/defaultRules';
 import { DEFAULT_BUSINESS_FILTERS, DEFAULT_CAR_OWNER_SETTINGS } from './lib/defaultFilters';
 import { DEFAULT_AFTER_SALES_RECORDS, DEFAULT_SCHEDULERS } from './lib/defaultAfterSales';
 import { DEFAULT_DYNAMIC_CATEGORIES, DEFAULT_DYNAMIC_NOTIFICATION_KEYS } from './lib/defaultCategories';
 import TelemetryMetricsGrid from './components/TelemetryMetricsGrid';
+import RouteDataLoader from './components/RouteDataLoader';
 import { apiService } from './services/api';
 import { SERVICE_ENDPOINTS } from './constants/apiEndpoints';
 
@@ -74,7 +76,8 @@ export default function App() {
   const [categories, setCategories] = useState<DynamicCategory[]>([]);
   const [notificationKeys, setNotificationKeys] = useState<DynamicKey[]>([]);
   
-  const [activeScreen, setActiveScreen] = useState<'simulator' | 'rules' | 'settings' | 'after_sales' | 'scheduler' | 'category_keys' | 'i18n'>('simulator');
+  const location = useLocation();
+  const navigate = useNavigate();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [ruleToEdit, setRuleToEdit] = useState<Rule | null>(null);
   const [activeNotificationKeyFilter, setActiveNotificationKeyFilter] = useState<string | null>(null);
@@ -276,34 +279,6 @@ export default function App() {
     }
   };
 
-  // Trigger page-specific API calls when activeScreen changes
-  useEffect(() => {
-    switch (activeScreen) {
-      case 'simulator':
-      case 'rules':
-      case 'settings':
-        fetchRulesFromApi();
-        fetchCategoriesFromApi();
-        fetchKeysFromApi();
-        break;
-      case 'category_keys':
-        fetchCategoriesFromApi();
-        fetchKeysFromApi();
-        fetchRulesFromApi();
-        break;
-      case 'scheduler':
-        fetchSchedulersFromApi();
-        fetchRulesFromApi();
-        break;
-      case 'after_sales':
-      case 'i18n':
-        fetchRulesFromApi();
-        fetchKeysFromApi();
-        break;
-      default:
-        break;
-    }
-  }, [activeScreen]);
 
   // Initialize and load from local storage
   useEffect(() => {
@@ -694,7 +669,7 @@ export default function App() {
 
   // Load a historic log back into the active simulator panel
   const handleLoadLog = (log: SimulationLog) => {
-    setActiveScreen('simulator');
+    navigate('/simulator');
     setActiveNotificationKeyFilter(log.matchedRules[0]?.notificationKey || (log.matchedRules[0] as any)?.ruleKey || 'NONE');
     triggerToast(`Loaded simulation event for VIN: ${log.vin}`);
     setTimeout(() => setActiveNotificationKeyFilter(null), 50);
@@ -761,14 +736,21 @@ export default function App() {
 
   const handleSelectRuleForTesting = (rule: Rule) => {
     const nk = rule.notificationKey || (rule as any).ruleKey;
-    setActiveScreen('simulator');
+    navigate('/simulator');
     setActiveNotificationKeyFilter(nk);
     triggerToast(`Testing rule: ${nk}`);
     setTimeout(() => setActiveNotificationKeyFilter(null), 50);
   };
 
-  const getNavBtnClass = (screen: string) => {
-    const isActive = activeScreen === screen;
+  const isRouteActive = (routePath: string) => {
+    if (routePath === '/simulator') {
+      return location.pathname === '/simulator' || location.pathname === '/';
+    }
+    return location.pathname === routePath;
+  };
+
+  const getNavBtnClass = (routePath: string) => {
+    const isActive = isRouteActive(routePath);
     const padding = sidebarCollapsed ? 'justify-center p-2.5' : 'space-x-2.5 px-3 py-2';
     const base = `w-full flex items-center ${padding} rounded-xl text-xs font-bold transition duration-150 uppercase tracking-wide border`;
     if (isActive) {
@@ -776,6 +758,31 @@ export default function App() {
     } else {
       return `${base} text-slate-400 hover:text-white hover:bg-white/10 border-transparent`;
     }
+  };
+
+  const getRouteTitle = (path: string) => {
+    switch (path) {
+      case '/rules':
+        return 'Rules Matrix Registry';
+      case '/category-keys':
+        return 'Notification Category & Key Matrix';
+      case '/settings':
+        return 'Notification Controls';
+      case '/after-sales':
+        return 'After-Sales & Maintenance';
+      case '/scheduler':
+        return 'Proactive Schedulers';
+      case '/i18n':
+        return 'Locale & i18n Studio';
+      case '/simulator':
+      case '/':
+      default:
+        return 'Simulation Console';
+    }
+  };
+
+  const isFullWidthRoute = (path: string) => {
+    return ['/settings', '/after-sales', '/scheduler', '/category-keys', '/i18n'].includes(path);
   };
 
   const getActionBtnClass = () => {
@@ -809,10 +816,10 @@ export default function App() {
         <div className="flex items-center space-x-2">
           {/* HOME MENU ICON BUTTON */}
           <button
-            onClick={() => setActiveScreen('simulator')}
+            onClick={() => { navigate('/simulator'); setMobileSidebarOpen(false); }}
             title="Go to Home"
             className={`p-1.5 rounded-lg border transition flex items-center justify-center ${
-              activeScreen === 'simulator'
+              isRouteActive('/simulator')
                 ? 'bg-[#5969ff] border-[#5969ff] text-white'
                 : 'border-white/20 text-slate-300 hover:text-white'
             }`}
@@ -886,63 +893,63 @@ export default function App() {
             )}
             <nav className="space-y-1">
               <button
-                onClick={() => { setActiveScreen('simulator'); setMobileSidebarOpen(false); }}
+                onClick={() => { navigate('/simulator'); setMobileSidebarOpen(false); }}
                 title="Simulation Playground"
-                className={getNavBtnClass('simulator')}
+                className={getNavBtnClass('/simulator')}
               >
                 <Terminal className="h-4.5 w-4.5 shrink-0" />
                 {!sidebarCollapsed && <span className="truncate">Simulation Console</span>}
               </button>
 
               <button
-                onClick={() => { setActiveScreen('rules'); setMobileSidebarOpen(false); }}
+                onClick={() => { navigate('/rules'); setMobileSidebarOpen(false); }}
                 title="Rules Matrix Registry"
-                className={getNavBtnClass('rules')}
+                className={getNavBtnClass('/rules')}
               >
                 <Cpu className="h-4.5 w-4.5 shrink-0" />
                 {!sidebarCollapsed && <span className="truncate">Rules Matrix Registry</span>}
               </button>
 
               <button
-                onClick={() => { setActiveScreen('category_keys'); setMobileSidebarOpen(false); }}
+                onClick={() => { navigate('/category-keys'); setMobileSidebarOpen(false); }}
                 title="NotificationCategory & Key Matrix"
-                className={getNavBtnClass('category_keys')}
+                className={getNavBtnClass('/category-keys')}
               >
                 <Network className="h-4.5 w-4.5 shrink-0" />
                 {!sidebarCollapsed && <span className="truncate">Category & Key</span>}
               </button>
 
               <button
-                onClick={() => { setActiveScreen('settings'); setMobileSidebarOpen(false); }}
+                onClick={() => { navigate('/settings'); setMobileSidebarOpen(false); }}
                 title="Notification Controls"
-                className={getNavBtnClass('settings')}
+                className={getNavBtnClass('/settings')}
               >
                 <Sliders className="h-4.5 w-4.5 shrink-0" />
                 {!sidebarCollapsed && <span className="truncate">Notification Controls</span>}
               </button>
 
               <button
-                onClick={() => { setActiveScreen('after_sales'); setMobileSidebarOpen(false); }}
+                onClick={() => { navigate('/after-sales'); setMobileSidebarOpen(false); }}
                 title="After-Sales & Maintenance"
-                className={getNavBtnClass('after_sales')}
+                className={getNavBtnClass('/after-sales')}
               >
                 <Wrench className="h-4.5 w-4.5 shrink-0" />
                 {!sidebarCollapsed && <span className="truncate">After-Sales & Shop</span>}
               </button>
 
               <button
-                onClick={() => { setActiveScreen('scheduler'); setMobileSidebarOpen(false); }}
+                onClick={() => { navigate('/scheduler'); setMobileSidebarOpen(false); }}
                 title="Notification Schedulers"
-                className={getNavBtnClass('scheduler')}
+                className={getNavBtnClass('/scheduler')}
               >
                 <Clock className="h-4.5 w-4.5 shrink-0" />
                 {!sidebarCollapsed && <span className="truncate">Proactive Schedulers</span>}
               </button>
 
               <button
-                onClick={() => { setActiveScreen('i18n'); setMobileSidebarOpen(false); }}
+                onClick={() => { navigate('/i18n'); setMobileSidebarOpen(false); }}
                 title="Locale & i18n Studio"
-                className={getNavBtnClass('i18n')}
+                className={getNavBtnClass('/i18n')}
               >
                 <Globe className="h-4.5 w-4.5 shrink-0" />
                 {!sidebarCollapsed && <span className="truncate">Locale & i18n Studio</span>}
@@ -992,7 +999,7 @@ export default function App() {
                 />
               </label>
 
-              {activeScreen === 'rules' && (
+              {location.pathname === '/rules' && (
                 <button
                   onClick={handleCreateRuleTrigger}
                   title="Create New Rule"
@@ -1039,18 +1046,19 @@ export default function App() {
             <h2 className={`text-sm font-bold font-display uppercase tracking-widest ${theme === 'concept-dark' ? 'text-white' : 'text-[#2e384d]'}`}>
               Notification Gateway
             </h2>
-            <p className="text-[10px] text-[#71748d] font-mono">
-              CONCEPT DASHBOARD // {activeScreen.toUpperCase()}
+            <p className="text-[10px] text-[#71748d] font-mono flex items-center space-x-2">
+              <span>CONCEPT DASHBOARD // {getRouteTitle(location.pathname).toUpperCase()}</span>
+              <span className="text-[#5969ff] font-bold">({location.pathname})</span>
             </p>
           </div>
           
           <div className="flex items-center space-x-2.5">
             {/* HOME MENU ICON BUTTON */}
             <button
-              onClick={() => setActiveScreen('simulator')}
+              onClick={() => navigate('/simulator')}
               title="Go to Home / Playground"
               className={`p-2.5 rounded-xl border transition flex items-center justify-center shadow-sm relative group ${
-                activeScreen === 'simulator'
+                isRouteActive('/simulator')
                   ? 'bg-[#5969ff] border-[#5969ff] text-white shadow-md shadow-[#5969ff]/20'
                   : theme === 'concept-dark' 
                     ? 'bg-[#0e0c28] border-[#25234e] text-slate-300 hover:text-white' 
@@ -1105,129 +1113,193 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
             {/* SCREEN-SPECIFIC VIEWS */}
-            <div className={`${(activeScreen === 'settings' || activeScreen === 'after_sales' || activeScreen === 'scheduler' || activeScreen === 'category_keys' || activeScreen === 'i18n') ? 'lg:col-span-12' : 'lg:col-span-8'} flex flex-col space-y-4`}>
+            <div className={`${isFullWidthRoute(location.pathname) ? 'lg:col-span-12' : 'lg:col-span-8'} flex flex-col space-y-4`}>
               
               <React.Suspense fallback={<ScreenSkeleton />}>
-                {activeScreen === 'simulator' && (
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-2 border-b border-slate-900 pb-2">
-                      <Terminal className="h-4.5 w-4.5 text-indigo-400" />
-                      <h2 className="text-xs font-bold font-mono text-slate-400 uppercase tracking-wider">Simulation Playground Sandbox</h2>
-                    </div>
-                    
-                    <SimulationPlayground 
-                      rules={rules}
-                      businessFilters={businessFilters}
-                      userSettings={userSettings}
-                      onAddLog={handleAddLog} 
-                      activeNotificationKeyFilter={activeNotificationKeyFilter || undefined}
-                    />
-                  </div>
-                )}
-
-                {activeScreen === 'rules' && (
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-2 border-b border-slate-900 pb-2">
-                      <Cpu className="h-4.5 w-4.5 text-indigo-400" />
-                      <h2 className="text-xs font-bold font-mono text-slate-400 uppercase tracking-wider">Active Platform Ingestion Rules Matrix</h2>
-                    </div>
-
-                    <RulesMatrixManager 
-                      rules={rules}
-                      categories={categories}
-                      onToggleRule={handleToggleRule}
-                      onEditRule={handleEditRuleTrigger}
-                      onDeleteRule={handleDeleteRule}
-                      onDuplicateRule={handleDuplicateRule}
-                      onSelectRuleForTesting={handleSelectRuleForTesting}
-                      onReCache={handleReCache}
-                    />
-                  </div>
-                )}
-
-                {activeScreen === 'settings' && (
-                  <GatewayFilterRegistry
-                    rules={rules}
-                    businessFilters={businessFilters}
-                    userSettings={userSettings}
-                    categories={categories}
-                    onAddBusinessFilter={handleAddBusinessFilter}
-                    onToggleBusinessFilter={handleToggleBusinessFilter}
-                    onDeleteBusinessFilter={handleDeleteBusinessFilter}
-                    onAddUserSetting={handleAddUserSetting}
-                    onToggleUserSetting={handleToggleUserSetting}
-                    onDeleteUserSetting={handleDeleteUserSetting}
+                <Routes>
+                  <Route
+                    path="/"
+                    element={<Navigate to="/simulator" replace />}
                   />
-                )}
+                  <Route
+                    path="/simulator"
+                    element={
+                      <RouteDataLoader
+                        routeName="Simulation Playground Console"
+                        routeEndpoint="POST /rules/evaluate"
+                        fetchers={[fetchRulesFromApi, fetchCategoriesFromApi, fetchKeysFromApi]}
+                      >
+                        <div className="space-y-4">
+                          <div className="flex items-center space-x-2 border-b border-slate-900 pb-2">
+                            <Terminal className="h-4.5 w-4.5 text-indigo-400" />
+                            <h2 className="text-xs font-bold font-mono text-slate-400 uppercase tracking-wider">Simulation Playground Sandbox</h2>
+                          </div>
+                          
+                          <SimulationPlayground 
+                            rules={rules}
+                            businessFilters={businessFilters}
+                            userSettings={userSettings}
+                            onAddLog={handleAddLog} 
+                            activeNotificationKeyFilter={activeNotificationKeyFilter || undefined}
+                          />
+                        </div>
+                      </RouteDataLoader>
+                    }
+                  />
+                  <Route
+                    path="/rules"
+                    element={
+                      <RouteDataLoader
+                        routeName="Active Platform Ingestion Rules Matrix"
+                        routeEndpoint="GET /rules"
+                        fetchers={[fetchRulesFromApi, fetchCategoriesFromApi]}
+                      >
+                        <div className="space-y-4">
+                          <div className="flex items-center space-x-2 border-b border-slate-900 pb-2">
+                            <Cpu className="h-4.5 w-4.5 text-indigo-400" />
+                            <h2 className="text-xs font-bold font-mono text-slate-400 uppercase tracking-wider">Active Platform Ingestion Rules Matrix</h2>
+                          </div>
 
-                {activeScreen === 'after_sales' && (
-                  <div className="space-y-4">
-                    <AfterSalesMaintenanceManager
-                      records={afterSalesRecords}
-                      schedulers={schedulers}
-                      onAddRecord={handleAddAfterSalesRecord}
-                      onUpdateRecord={handleUpdateAfterSalesRecord}
-                      onDeleteRecord={handleDeleteAfterSalesRecord}
-                      onAddLog={handleAddLog}
-                      triggerToast={triggerToast}
-                    />
-                  </div>
-                )}
-
-                {activeScreen === 'scheduler' && (
-                  <div className="space-y-4">
-                    <ProactiveNotificationScheduler
-                      schedulers={schedulers}
-                      afterSalesRecords={afterSalesRecords}
-                      rules={rules}
-                      businessFilters={businessFilters}
-                      userSettings={userSettings}
-                      onAddScheduler={handleAddScheduler}
-                      onUpdateScheduler={handleUpdateScheduler}
-                      onDeleteScheduler={handleDeleteScheduler}
-                      onAddLog={handleAddLog}
-                      triggerToast={triggerToast}
-                    />
-                  </div>
-                )}
-
-                {activeScreen === 'category_keys' && (
-                  <div className="space-y-4">
-                    <NotificationCategoryManager
-                      categories={categories}
-                      notificationKeys={notificationKeys}
-                      rules={rules}
-                      onAddCategory={handleAddCategory}
-                      onUpdateCategory={handleUpdateCategory}
-                      onDeleteCategory={handleDeleteCategory}
-                      onAddNotificationKey={handleAddNotificationKey}
-                      onUpdateNotificationKey={handleUpdateNotificationKey}
-                      onDeleteNotificationKey={handleDeleteNotificationKey}
-                      triggerToast={triggerToast}
-                    />
-                  </div>
-                )}
-
-                {activeScreen === 'i18n' && (
-                  <div className="space-y-4">
-                    <LocalizationManager
-                      rules={rules}
-                      userSettings={userSettings}
-                      onUpdateRule={(updatedRule) => {
-                        const updated = rules.map(r => r.id === updatedRule.id ? updatedRule : r);
-                        saveRulesToLocalStorage(updated);
-                      }}
-                      onUpdateUserSettings={saveUserSettingsToLocalStorage}
-                      triggerToast={triggerToast}
-                    />
-                  </div>
-                )}
+                          <RulesMatrixManager 
+                            rules={rules}
+                            categories={categories}
+                            onToggleRule={handleToggleRule}
+                            onEditRule={handleEditRuleTrigger}
+                            onDeleteRule={handleDeleteRule}
+                            onDuplicateRule={handleDuplicateRule}
+                            onSelectRuleForTesting={handleSelectRuleForTesting}
+                            onReCache={handleReCache}
+                          />
+                        </div>
+                      </RouteDataLoader>
+                    }
+                  />
+                  <Route
+                    path="/settings"
+                    element={
+                      <RouteDataLoader
+                        routeName="Gateway Ingress Controls & Consent Registry"
+                        routeEndpoint="GET /rules"
+                        fetchers={[fetchRulesFromApi, fetchCategoriesFromApi]}
+                      >
+                        <GatewayFilterRegistry
+                          rules={rules}
+                          businessFilters={businessFilters}
+                          userSettings={userSettings}
+                          categories={categories}
+                          onAddBusinessFilter={handleAddBusinessFilter}
+                          onToggleBusinessFilter={handleToggleBusinessFilter}
+                          onDeleteBusinessFilter={handleDeleteBusinessFilter}
+                          onAddUserSetting={handleAddUserSetting}
+                          onToggleUserSetting={handleToggleUserSetting}
+                          onDeleteUserSetting={handleDeleteUserSetting}
+                        />
+                      </RouteDataLoader>
+                    }
+                  />
+                  <Route
+                    path="/after-sales"
+                    element={
+                      <RouteDataLoader
+                        routeName="After-Sales Maintenance Matrix"
+                        routeEndpoint="GET /rules"
+                        fetchers={[fetchRulesFromApi, fetchKeysFromApi]}
+                      >
+                        <div className="space-y-4">
+                          <AfterSalesMaintenanceManager
+                            records={afterSalesRecords}
+                            schedulers={schedulers}
+                            onAddRecord={handleAddAfterSalesRecord}
+                            onUpdateRecord={handleUpdateAfterSalesRecord}
+                            onDeleteRecord={handleDeleteAfterSalesRecord}
+                            onAddLog={handleAddLog}
+                            triggerToast={triggerToast}
+                          />
+                        </div>
+                      </RouteDataLoader>
+                    }
+                  />
+                  <Route
+                    path="/scheduler"
+                    element={
+                      <RouteDataLoader
+                        routeName="Proactive Notification Schedulers"
+                        routeEndpoint="GET /schedulers"
+                        fetchers={[fetchSchedulersFromApi, fetchRulesFromApi]}
+                      >
+                        <div className="space-y-4">
+                          <ProactiveNotificationScheduler
+                            schedulers={schedulers}
+                            afterSalesRecords={afterSalesRecords}
+                            rules={rules}
+                            businessFilters={businessFilters}
+                            userSettings={userSettings}
+                            onAddScheduler={handleAddScheduler}
+                            onUpdateScheduler={handleUpdateScheduler}
+                            onDeleteScheduler={handleDeleteScheduler}
+                            onAddLog={handleAddLog}
+                            triggerToast={triggerToast}
+                          />
+                        </div>
+                      </RouteDataLoader>
+                    }
+                  />
+                  <Route
+                    path="/category-keys"
+                    element={
+                      <RouteDataLoader
+                        routeName="Category & Notification Key Relationship Matrix"
+                        routeEndpoint="GET /setting-service/matrix"
+                        fetchers={[fetchCategoriesFromApi, fetchKeysFromApi, fetchRulesFromApi]}
+                      >
+                        <div className="space-y-4">
+                          <NotificationCategoryManager
+                            categories={categories}
+                            notificationKeys={notificationKeys}
+                            rules={rules}
+                            onAddCategory={handleAddCategory}
+                            onUpdateCategory={handleUpdateCategory}
+                            onDeleteCategory={handleDeleteCategory}
+                            onAddNotificationKey={handleAddNotificationKey}
+                            onUpdateNotificationKey={handleUpdateNotificationKey}
+                            onDeleteNotificationKey={handleDeleteNotificationKey}
+                            triggerToast={triggerToast}
+                          />
+                        </div>
+                      </RouteDataLoader>
+                    }
+                  />
+                  <Route
+                    path="/i18n"
+                    element={
+                      <RouteDataLoader
+                        routeName="Global Multi-Language Localization Engine"
+                        routeEndpoint="GET /rules"
+                        fetchers={[fetchRulesFromApi, fetchKeysFromApi]}
+                      >
+                        <div className="space-y-4">
+                          <LocalizationManager
+                            rules={rules}
+                            userSettings={userSettings}
+                            onUpdateRule={(updatedRule) => {
+                              const updated = rules.map(r => r.id === updatedRule.id ? updatedRule : r);
+                              saveRulesToLocalStorage(updated);
+                            }}
+                            onUpdateUserSettings={saveUserSettingsToLocalStorage}
+                            triggerToast={triggerToast}
+                          />
+                        </div>
+                      </RouteDataLoader>
+                    }
+                  />
+                  <Route path="*" element={<Navigate to="/simulator" replace />} />
+                </Routes>
               </React.Suspense>
 
             </div>
 
             {/* SIDEBAR HISTORICAL AUDIT LOGS (Only visible in Simulation & Rules views) */}
-            {(activeScreen !== 'settings' && activeScreen !== 'after_sales' && activeScreen !== 'scheduler' && activeScreen !== 'category_keys' && activeScreen !== 'i18n') && (
+            {!isFullWidthRoute(location.pathname) && (
               <div className="lg:col-span-4">
                 <React.Suspense fallback={<ScreenSkeleton />}>
                   <NotificationEvents 

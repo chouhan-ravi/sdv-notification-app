@@ -634,9 +634,9 @@ export default function CategoryKeyManager({
           </div>
         </div>
         <div className="flex items-center space-x-2 font-mono text-xs shrink-0 bg-slate-900 px-3 py-2 rounded-lg border border-slate-800">
-          <span className="text-amber-400 font-bold">NotificationCategory</span>
+          <span className="text-amber-400 font-bold">Notification Category</span>
           <span className="text-slate-500">➔</span>
-          <span className="text-emerald-400 font-bold">NotificationKey</span>
+          <span className="text-emerald-400 font-bold">Notification Key</span>
           <span className="text-slate-500">➔</span>
           <span className="text-indigo-400 font-bold">RuleConfig</span>
         </div>
@@ -768,7 +768,7 @@ export default function CategoryKeyManager({
                           <div className="flex items-center justify-between text-xs font-bold font-mono text-emerald-400 uppercase tracking-wide">
                             <span className="flex items-center space-x-1">
                               <Key className="h-3.5 w-3.5" />
-                              <span>mappedNotificationKeys ({mappedKeys.length})</span>
+                              <span>Mapped Notification Keys ({mappedKeys.length})</span>
                             </span>
                           </div>
 
@@ -842,8 +842,8 @@ export default function CategoryKeyManager({
                 <div className="p-3 bg-slate-900 group-hover:bg-indigo-600/10 text-slate-400 group-hover:text-indigo-400 border border-slate-800 group-hover:border-indigo-500/30 rounded-xl transition">
                   <Plus className="h-6 w-6" />
                 </div>
-                <span className="text-sm font-bold text-slate-300 group-hover:text-slate-100 mt-4 font-mono uppercase tracking-wider">Add NotificationCategory</span>
-                <span className="text-xs text-slate-500 mt-1 text-center max-w-[220px] leading-relaxed">Create a new category code to group NotificationKey triggers.</span>
+                <span className="text-sm font-bold text-slate-300 group-hover:text-slate-100 mt-4 font-mono uppercase tracking-wider">Add Notification Category</span>
+                <span className="text-xs text-slate-500 mt-1 text-center max-w-[220px] leading-relaxed">Create a new category code to group Notification Key triggers.</span>
               </button>
             </div>
           )}
@@ -880,7 +880,7 @@ export default function CategoryKeyManager({
                   className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold font-mono tracking-wider uppercase transition flex items-center justify-center space-x-2 shadow-lg"
                 >
                   <Plus className="h-4 w-4" />
-                  <span>Create NotificationCategory</span>
+                  <span>Create Notification Category</span>
                 </button>
               )}
             </div>
@@ -905,7 +905,7 @@ export default function CategoryKeyManager({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-300 font-mono mb-2 uppercase tracking-wider">
-                      NOTIFICATIONCATEGORY CODE
+                      NOTIFICATION CATEGORY CODE
                     </label>
                     <input
                       type="text"
@@ -1046,7 +1046,7 @@ export default function CategoryKeyManager({
                     className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-mono font-bold flex items-center space-x-2 shadow-md"
                   >
                     <Save className="h-4 w-4" />
-                    <span>Save NotificationCategory</span>
+                    <span>Save Notification Category</span>
                   </button>
                 </div>
               </form>
@@ -1057,7 +1057,7 @@ export default function CategoryKeyManager({
               <table className="w-full border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-800 bg-slate-950 font-mono text-xs text-slate-400 uppercase tracking-wider">
-                    <th className="p-4 font-semibold">NotificationCategory</th>
+                    <th className="p-4 font-semibold">Notification Category</th>
                     <th className="p-4 font-semibold">Display Title & Scope</th>
                     <th className="p-4 text-center font-semibold">Mapped RuleConfigs</th>
                     <th className="p-4 text-center font-semibold">Status</th>
@@ -1068,7 +1068,7 @@ export default function CategoryKeyManager({
                   {filteredCategories.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="p-8 text-center text-slate-500 italic">
-                        No NotificationCategory items found matching search.
+                        No Notification Category items found matching search.
                       </td>
                     </tr>
                   ) : (
@@ -1216,7 +1216,7 @@ export default function CategoryKeyManager({
                   className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold font-mono tracking-wider uppercase transition flex items-center justify-center space-x-2 shadow-lg"
                 >
                   <Plus className="h-4 w-4" />
-                  <span>Create NotificationKey</span>
+                  <span>Create Notification Key</span>
                 </button>
               )}
             </div>
@@ -1270,7 +1270,7 @@ export default function CategoryKeyManager({
 
                   <div>
                     <label className="block text-xs font-bold text-slate-300 font-mono mb-2 uppercase tracking-wider">
-                      TARGET NOTIFICATIONCATEGORY
+                      TARGET NOTIFICATION CATEGORY
                     </label>
                     <select
                       required
@@ -1316,7 +1316,7 @@ export default function CategoryKeyManager({
                     className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-mono font-bold flex items-center space-x-2 shadow-md"
                   >
                     <Save className="h-4 w-4" />
-                    <span>Save NotificationKey</span>
+                    <span>Save Notification Key</span>
                   </button>
                 </div>
               </form>
@@ -1327,8 +1327,8 @@ export default function CategoryKeyManager({
               <table className="w-full border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-800 bg-slate-950 font-mono text-xs text-slate-400 uppercase tracking-wider">
-                    <th className="p-4 font-semibold">NotificationKey</th>
-                    <th className="p-4 font-semibold">Associated NotificationCategory</th>
+                    <th className="p-4 font-semibold">Notification Key</th>
+                    <th className="p-4 font-semibold">Associated Notification Category</th>
                     <th className="p-4 font-semibold">Display Title & Scope</th>
                     <th className="p-4 text-center font-semibold">Status</th>
                     <th className="p-4 text-right font-semibold">Actions</th>
@@ -1338,7 +1338,7 @@ export default function CategoryKeyManager({
                   {filteredRuleKeys.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="p-8 text-center text-slate-500 italic">
-                        No NotificationKey items found matching search.
+                        No Notification Key items found matching search.
                       </td>
                     </tr>
                   ) : (
