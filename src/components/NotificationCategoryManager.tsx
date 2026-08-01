@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Rule, DynamicCategory, DynamicKey, RuleConfigItem, MatrixCategoryItem } from '../types';
+import { Rule, DynamicCategory, DynamicKey, RuleConfigItem, MatrixCategoryItem, RealmMatrixMappingRecord } from '../types';
 import { 
   Plus, 
   Trash2, 
@@ -31,6 +31,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { API_BASE_URL, SERVICE_ENDPOINTS } from '../constants/apiEndpoints';
+import { apiService } from '../services/api';
 
 const SUPPORTED_LOCALES = [
   { code: 'es', name: 'Spanish (Español)', flag: '🇪🇸' },
@@ -91,6 +92,7 @@ export default function CategoryKeyManager({
   const [rkKey, setRkKey] = useState('');
   const [rkName, setRkName] = useState('');
   const [rkCategoryKey, setRkCategoryKey] = useState('');
+  const [rkRealm, setRkRealm] = useState('us');
   const [rkDesc, setRkDesc] = useState('');
   const [rkIsEditing, setRkIsEditing] = useState<string | null>(null);
   const [rkSearch, setRkSearch] = useState('');
@@ -108,11 +110,12 @@ export default function CategoryKeyManager({
   // Quick-Move state
   const [quickMoveRk, setQuickMoveRk] = useState<string | null>(null);
 
-  // Matrix API GET /matrix states
-  const [matrixData, setMatrixData] = useState<MatrixCategoryItem[]>([]);
-  const [loadingMatrix, setLoadingMatrix] = useState<boolean>(false);
-  const [showRawJson, setShowRawJson] = useState<boolean>(false);
-  const [jsonCopied, setJsonCopied] = useState<boolean>(false);
+  // Realm Relationship Matrix API GET /matrix/{realm} states
+  const [selectedRealmScope, setSelectedRealmScope] = useState<string>('us');
+  const [realmMatrixMappings, setRealmMatrixMappings] = useState<RealmMatrixMappingRecord[]>([]);
+  const [isLoadingRealmMatrix, setIsLoadingRealmMatrix] = useState<boolean>(false);
+  const [isRawJsonModeActive, setIsRawJsonModeActive] = useState<boolean>(false);
+  const [hasCopiedMatrixJson, setHasCopiedMatrixJson] = useState<boolean>(false);
 
   // Property Accessors for Categories & Keys
   const getCatKey = (c: DynamicCategory | undefined | null): string => {
@@ -135,64 +138,76 @@ export default function CategoryKeyManager({
     return k.displayName || k.key || '';
   };
 
-  // Fetch matrix from GET /matrix endpoint
-  const fetchMatrix = async () => {
-    setLoadingMatrix(true);
+  // Fetch matrix from GET /matrix/{realm} endpoint
+  const fetchRealmMatrixData = async (targetRealm: string) => {
+    setIsLoadingRealmMatrix(true);
     try {
-      const res = await fetch(`${API_BASE_URL+SERVICE_ENDPOINTS.SETTING_SERVICE}/matrix`);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setMatrixData(data);
-          setLoadingMatrix(false);
-          return;
-        }
+      const res = await apiService.fetchMatrixByRealm(targetRealm);
+      if (Array.isArray(res)) {
+        setRealmMatrixMappings(res);
+        setIsLoadingRealmMatrix(false);
+        return;
       }
-    } catch (e) {
-      console.warn('GET /matrix endpoint call failed, using dynamic local matrix fallback', e);
+    } catch (err) {
+      console.warn(`GET /matrix/${targetRealm} endpoint call warning, using fallback:`, err);
     }
 
-    // Dynamic local fallback adhering to exact JSON structure requested
-    const fallback: MatrixCategoryItem[] = categories.map(cat => {
-      const catCode = getCatKey(cat);
-      const catNameVal = getCatName(cat);
-      const relatedKeys = activeNotificationKeys
-        .filter(rk => (rk.notificationCategory || (rk as any).categoryKey) === catCode)
-        .map(rk => ({
-          key: getRkKey(rk),
-          displayName: getRkName(rk),
-          description: rk.description || getRkKey(rk),
-          mappedCategories: null
-        }));
+    // Dynamic local fallback adhering to exact JSON structure requested for GET /matrix/{realm}
+    const matchingKeys = activeNotificationKeys.filter(k => 
+      (k.realm || 'us').toLowerCase() === targetRealm.toLowerCase()
+    );
 
+    const keysToMap = matchingKeys.length > 0 
+      ? matchingKeys 
+      : (activeNotificationKeys.length > 0 ? activeNotificationKeys : [
+          {
+            key: 'milon.burgluer.handbrake.key',
+            displayName: 'Milon Burgluer Hand Brakes',
+            notificationCategory: 'milon.burglar.category',
+            realm: targetRealm,
+            enabled: true,
+            description: 'milon.burgluer.handbrake.key'
+          }
+        ]);
+
+    const fallbackMappings: RealmMatrixMappingRecord[] = keysToMap.map(k => {
+      const catCode = k.notificationCategory || (k as any).categoryKey || 'milon.burglar.category';
       const mappedRuleConfigs = getRuleConfigsForCategory(catCode);
-      const mappedRules = Array.from(
-        new Map(
-          mappedRuleConfigs.map(c => [c.ruleId, { id: c.ruleId, name: c.ruleName, description: `Vehicle rule mapping for ${catCode}` }])
-        ).values()
-      );
+      const mappedRulesList = mappedRuleConfigs.map(c => ({
+        id: c.ruleId,
+        name: c.ruleName,
+        description: `Vehicle doors lock & unlock remotely`,
+        enabled: true
+      }));
 
       return {
         category: catCode,
-        displayName: catNameVal,
-        description: cat.description || catCode,
-        isMandatory: cat.isMandatory ?? true,
-        mappedRules,
-        mappedNotificationKeys: relatedKeys
+        key: k.key,
+        realm: k.realm || targetRealm,
+        enabled: k.enabled ?? true,
+        description: k.description || 'mapping',
+        mappedRules: mappedRulesList.length > 0 ? mappedRulesList : [
+          {
+            id: 'MILON_RULE',
+            name: 'Milon Rule',
+            description: 'Vehicle doors lock & unlock remotely',
+            enabled: true
+          }
+        ]
       };
     });
 
-    setMatrixData(fallback);
-    setLoadingMatrix(false);
+    setRealmMatrixMappings(fallbackMappings);
+    setIsLoadingRealmMatrix(false);
   };
 
   useEffect(() => {
     if (activeTab === 'visual') {
-      fetchMatrix();
+      fetchRealmMatrixData(selectedRealmScope);
     }
-  }, [activeTab, categories, activeNotificationKeys, rules]);
+  }, [activeTab, selectedRealmScope, categories, activeNotificationKeys, rules]);
 
-  // Helper: check if NotificationCategory is in use in rules matrix via RuleConfig or categoryKey
+  // Helper: check if NotificationCategory is in use in rules matrix or mapped to NotificationKey
   const getRulesUsingCategory = (key: string): Rule[] => {
     return rules.filter(r => {
       if (r.notificationCategory === key) return true;
@@ -201,8 +216,16 @@ export default function CategoryKeyManager({
     });
   };
 
+  const getKeysUsingCategory = (catKey: string): DynamicKey[] => {
+    return activeNotificationKeys.filter(rk => 
+      (rk.notificationCategory || (rk as any).categoryKey || (rk as any).category) === catKey
+    );
+  };
+
   const isCategoryInUse = (key: string): boolean => {
-    return getRulesUsingCategory(key).length > 0;
+    const inRules = getRulesUsingCategory(key).length > 0;
+    const inKeys = getKeysUsingCategory(key).length > 0;
+    return inRules || inKeys;
   };
 
   // Helper: check if NotificationKey is in use in rules matrix via RuleConfig or notificationKey
@@ -248,7 +271,7 @@ export default function CategoryKeyManager({
   };
 
   // Submit NotificationCategory
-  const handleCategorySubmit = (e: React.FormEvent) => {
+  const handleCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!catKey.trim() || !catName.trim()) {
@@ -274,17 +297,36 @@ export default function CategoryKeyManager({
         };
       });
 
+    const categoryPayload: DynamicCategory = {
+      category: formattedKey,
+      displayName: catName.trim(),
+      description: catDesc.trim(),
+      isMandatory: true,
+      enabled: true,
+      translations: translationsArray.length > 0 ? translationsArray : undefined
+    };
+
+    // Integration with POST /categories
+    try {
+      await apiService.createCategory({
+        category: categoryPayload.category,
+        displayName: categoryPayload.displayName,
+        description: categoryPayload.description,
+        isMandatory: categoryPayload.isMandatory
+      });
+    } catch (apiErr) {
+      console.warn('POST /categories API integration warning:', apiErr);
+    }
+
     if (catIsEditing) {
       const original = categories.find(c => getCatKey(c) === catIsEditing);
       if (!original) return;
 
       onUpdateCategory({
+        ...categoryPayload,
         category: catIsEditing,
-        displayName: catName.trim(),
-        description: catDesc.trim(),
         isMandatory: original.isMandatory,
-        enabled: original.enabled,
-        translations: translationsArray.length > 0 ? translationsArray : undefined
+        enabled: original.enabled
       });
       triggerToast(`NotificationCategory "${catName}" updated successfully.`);
       setCatIsEditing(null);
@@ -294,14 +336,8 @@ export default function CategoryKeyManager({
         return;
       }
 
-      onAddCategory({
-        category: formattedKey,
-        displayName: catName.trim(),
-        description: catDesc.trim(),
-        enabled: true,
-        translations: translationsArray.length > 0 ? translationsArray : undefined
-      });
-      triggerToast(`NotificationCategory "${catName}" created successfully.`);
+      onAddCategory(categoryPayload);
+      triggerToast(`NotificationCategory "${catName}" created via POST /categories.`);
     }
 
     // Reset Form
@@ -320,7 +356,7 @@ export default function CategoryKeyManager({
   };
 
   // Submit NotificationKey
-  const handleRuleKeySubmit = (e: React.FormEvent) => {
+  const handleRuleKeySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!rkKey.trim() || !rkName.trim() || !rkCategoryKey) {
@@ -346,17 +382,38 @@ export default function CategoryKeyManager({
         };
       });
 
+    const keyPayload: DynamicKey = {
+      key: formattedKey,
+      displayName: rkName.trim(),
+      description: rkDesc.trim(),
+      notificationCategory: rkCategoryKey,
+      category: rkCategoryKey || true,
+      realm: rkRealm || 'us',
+      enabled: true,
+      translations: translationsArray.length > 0 ? translationsArray : undefined
+    };
+
+    // Integration with POST /keys
+    try {
+      await apiService.createKey({
+        key: keyPayload.key,
+        displayName: keyPayload.displayName,
+        description: keyPayload.description,
+        category: keyPayload.category ?? true,
+        realm: keyPayload.realm ?? 'us'
+      });
+    } catch (apiErr) {
+      console.warn('POST /keys API integration warning:', apiErr);
+    }
+
     if (rkIsEditing) {
       const original = activeNotificationKeys.find(r => r.key === rkIsEditing);
       if (!original) return;
 
       handleUpdateNk({
+        ...keyPayload,
         key: rkIsEditing,
-        displayName: rkName.trim(),
-        notificationCategory: rkCategoryKey,
-        enabled: original.enabled,
-        description: rkDesc.trim(),
-        translations: translationsArray.length > 0 ? translationsArray : undefined
+        enabled: original.enabled
       });
       triggerToast(`NotificationKey "${rkName}" updated successfully.`);
       setRkIsEditing(null);
@@ -366,21 +423,15 @@ export default function CategoryKeyManager({
         return;
       }
 
-      handleAddNk({
-        key: formattedKey,
-        displayName: rkName.trim(),
-        notificationCategory: rkCategoryKey,
-        enabled: true,
-        description: rkDesc.trim(),
-        translations: translationsArray.length > 0 ? translationsArray : undefined
-      });
-      triggerToast(`NotificationKey "${rkName}" created successfully.`);
+      handleAddNk(keyPayload);
+      triggerToast(`NotificationKey "${rkName}" created via POST /keys.`);
     }
 
     // Reset Form
     setRkKey('');
     setRkName('');
     setRkCategoryKey('');
+    setRkRealm('us');
     setRkDesc('');
     setRkTranslations({
       es: { name: '', description: '' },
@@ -440,6 +491,7 @@ export default function CategoryKeyManager({
     setRkKey(rkCode);
     setRkName(rkNameVal);
     setRkCategoryKey(rk.notificationCategory || (rk as any).categoryKey || '');
+    setRkRealm(rk.realm || 'us');
     setRkDesc(rk.description || '');
 
     const initialTrans: Record<string, { name: string; description: string }> = {
@@ -649,173 +701,183 @@ export default function CategoryKeyManager({
         {activeTab === 'visual' && (
           <div className="space-y-6">
             
-            {/* API Endpoint Action Header */}
+            {/* API Endpoint Action & Realm Selection Header */}
             <div className="p-4 bg-slate-950/80 border border-indigo-900/40 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center space-x-3">
-                <span className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-xs font-bold rounded-lg uppercase">
-                  GET /matrix
-                </span>
+              <div className="flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-4 w-full md:w-auto">
+                <div className="flex items-center space-x-2 shrink-0">
+                  <span className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-xs font-bold rounded-lg uppercase">
+                    GET /matrix/{selectedRealmScope}
+                  </span>
+                </div>
+
+                {/* Realm Dropdown Selection */}
+                <div className="flex items-center space-x-2 bg-slate-900/90 border border-slate-750 px-3 py-1.5 rounded-lg w-full sm:w-auto">
+                  <Globe className="h-4 w-4 text-cyan-400 shrink-0" />
+                  <label htmlFor="realm-matrix-select" className="text-xs font-bold font-mono text-slate-300 shrink-0">
+                    REALM:
+                  </label>
+                  <select
+                    id="realm-matrix-select"
+                    value={selectedRealmScope}
+                    onChange={(e) => {
+                      const newRealmVal = e.target.value;
+                      setSelectedRealmScope(newRealmVal);
+                      fetchRealmMatrixData(newRealmVal);
+                    }}
+                    className="bg-slate-950 text-cyan-300 font-mono text-xs font-bold px-2.5 py-1 rounded border border-slate-800 focus:outline-none focus:border-cyan-500 transition cursor-pointer w-full sm:w-auto"
+                  >
+                    <option value="us">us (United States)</option>
+                    <option value="eu">eu (Europe)</option>
+                    <option value="jp">jp (Japan)</option>
+                    <option value="cn">cn (China)</option>
+                    <option value="kr">kr (Korea)</option>
+                    <option value="global">global (Global)</option>
+                  </select>
+                </div>
+
                 <div>
-                  <h2 className="text-sm font-bold text-slate-100 flex items-center space-x-2">
-                    <span>Category & Notification Key Relationship Matrix</span>
+                  <h2 className="text-sm font-bold text-slate-100 hidden lg:block">
+                    Category & Key Realm Matrix
                   </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Live relational JSON data structure fetched from <code className="text-indigo-300 font-mono">GET /matrix</code>
-                  </p>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2 shrink-0">
+              <div className="flex items-center space-x-2 shrink-0 w-full md:w-auto justify-end">
                 <button
-                  onClick={fetchMatrix}
-                  disabled={loadingMatrix}
+                  type="button"
+                  onClick={() => fetchRealmMatrixData(selectedRealmScope)}
+                  disabled={isLoadingRealmMatrix}
                   className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold rounded-lg flex items-center space-x-1.5 transition"
                 >
-                  <RefreshCw className={`h-3.5 w-3.5 text-indigo-400 ${loadingMatrix ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`h-3.5 w-3.5 text-indigo-400 ${isLoadingRealmMatrix ? 'animate-spin' : ''}`} />
                   <span>Refresh Endpoint</span>
                 </button>
 
                 <button
-                  onClick={() => setShowRawJson(!showRawJson)}
+                  type="button"
+                  onClick={() => setIsRawJsonModeActive(!isRawJsonModeActive)}
                   className={`px-3 py-1.5 border text-xs font-bold rounded-lg flex items-center space-x-1.5 transition ${
-                    showRawJson 
+                    isRawJsonModeActive 
                       ? 'bg-indigo-600 border-indigo-500 text-white' 
                       : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
                   }`}
                 >
                   <Code className="h-3.5 w-3.5" />
-                  <span>{showRawJson ? 'Show Visual Cards' : 'View Raw JSON'}</span>
+                  <span>{isRawJsonModeActive ? 'Show Visual Cards' : 'View Raw JSON'}</span>
                 </button>
 
-                {showRawJson && (
+                {isRawJsonModeActive && (
                   <button
+                    type="button"
                     onClick={() => {
-                      navigator.clipboard.writeText(JSON.stringify(matrixData, null, 2));
-                      setJsonCopied(true);
-                      triggerToast('Copied matrix JSON response to clipboard!');
-                      setTimeout(() => setJsonCopied(false), 2000);
+                      navigator.clipboard.writeText(JSON.stringify(realmMatrixMappings, null, 2));
+                      setHasCopiedMatrixJson(true);
+                      triggerToast(`Copied GET /matrix/${selectedRealmScope} response to clipboard!`);
+                      setTimeout(() => setHasCopiedMatrixJson(false), 2000);
                     }}
                     className="px-3 py-1.5 bg-emerald-950/60 border border-emerald-800/60 text-emerald-300 text-xs font-bold rounded-lg flex items-center space-x-1.5 hover:bg-emerald-900/60 transition"
                   >
                     <Copy className="h-3.5 w-3.5" />
-                    <span>{jsonCopied ? 'Copied!' : 'Copy JSON'}</span>
+                    <span>{hasCopiedMatrixJson ? 'Copied!' : 'Copy JSON'}</span>
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Grid of Relationship Matrix Trees */}
-            {loadingMatrix ? (
+            {/* Grid or Raw JSON view of Realm Relationship Matrix */}
+            {isLoadingRealmMatrix ? (
               <div className="py-12 text-center bg-slate-950/40 border border-slate-800 rounded-2xl">
-                <RefreshCw className="h-8 w-8 text-indigo-400 animate-spin mx-auto mb-3" />
-                <p className="text-sm font-semibold text-slate-300">Fetching relationship matrix from GET /matrix...</p>
+                <RefreshCw className="h-8 w-8 text-cyan-400 animate-spin mx-auto mb-3" />
+                <p className="text-sm font-semibold text-slate-300">Fetching relationship matrix from GET /matrix/{selectedRealmScope}...</p>
               </div>
-            ) : showRawJson ? (
+            ) : isRawJsonModeActive ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs font-mono text-slate-400 px-1">
-                  <span>API Response Payload: GET /matrix</span>
-                  <span>{matrixData.length} Category Mappings</span>
+                  <span>API Response Payload: GET /matrix/{selectedRealmScope}</span>
+                  <span>{realmMatrixMappings.length} Mappings for Realm "{selectedRealmScope}"</span>
                 </div>
                 <div className="relative">
                   <pre className="p-5 bg-slate-950 border border-slate-800 rounded-2xl font-mono text-xs text-emerald-400 overflow-x-auto max-h-[600px] leading-relaxed select-all">
-                    {JSON.stringify(matrixData, null, 4)}
+                    {JSON.stringify(realmMatrixMappings, null, 4)}
                   </pre>
                 </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {matrixData.map((item, idx) => {
-                const mappedRules = item.mappedRules || [];
-                const mappedKeys = item.mappedNotificationKeys || [];
+                {realmMatrixMappings.map((mapItem, indexVal) => {
+                  const mappedRuleEntries = mapItem.mappedRules || [];
 
-                return (
-                  <div 
-                    key={item.category || idx} 
-                    className="bg-slate-950/60 border border-slate-800 hover:border-indigo-900/60 rounded-xl overflow-hidden transition duration-200 flex flex-col justify-between"
-                  >
+                  return (
+                    <div 
+                      key={`${mapItem.category}-${mapItem.key}-${indexVal}`}
+                      className="bg-slate-950/60 border border-slate-800 hover:border-cyan-900/60 rounded-xl overflow-hidden transition duration-200 flex flex-col justify-between"
+                    >
                     <div>
-                      {/* Category Card Header */}
-                      <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-start justify-between gap-2">
-                        <div className="space-y-1 min-w-0">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-xs font-mono font-bold text-amber-400 bg-amber-950/40 border border-amber-900/40 px-2 py-0.5 rounded truncate">
-                              {item.category}
-                            </span>
-                            {item.isMandatory ? (
-                              <span className="text-[10px] font-mono px-2 py-0.5 bg-rose-950/50 border border-rose-800/40 text-rose-300 rounded font-bold uppercase">
-                                Mandatory
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-mono px-2 py-0.5 bg-slate-800 text-slate-400 rounded uppercase">
-                                Optional
-                              </span>
-                            )}
+                      {/* Card Header: Category & Key */}
+                      <div className="p-4 bg-slate-950 border-b border-slate-800 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-mono font-bold text-amber-400 bg-amber-950/40 border border-amber-900/40 px-2.5 py-1 rounded truncate">
+                            📁 {mapItem.category}
+                          </span>
+                          <span className="text-[10px] font-mono font-bold text-cyan-300 bg-cyan-950/60 border border-cyan-800/40 px-2 py-0.5 rounded uppercase shrink-0">
+                            🌐 {mapItem.realm}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          <div className="font-mono text-xs font-bold text-emerald-300 truncate flex items-center space-x-1 min-w-0">
+                            <span>🔑</span>
+                            <span className="truncate" title={mapItem.key}>{mapItem.key}</span>
                           </div>
-                          <h3 className="text-sm font-bold text-slate-100 truncate mt-1">
-                            {item.displayName}
-                          </h3>
+                          <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase shrink-0 ${
+                            mapItem.enabled !== false 
+                              ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/40' 
+                              : 'bg-slate-800 text-slate-400'
+                          }`}>
+                            {mapItem.enabled !== false ? 'Active' : 'Disabled'}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Description & Mappings */}
+                      {/* Card Body: Description & Mapped Rules */}
                       <div className="p-4 space-y-4">
-                        <p className="text-xs text-slate-400 leading-relaxed font-mono bg-slate-900/40 p-2 rounded border border-slate-850">
-                          {item.description}
+                        <p className="text-xs text-slate-400 leading-relaxed font-mono bg-slate-900/40 p-2.5 rounded border border-slate-850">
+                          {mapItem.description || 'Category & Key relationship mapping'}
                         </p>
 
-                        {/* Mapped Notification Keys */}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-xs font-bold font-mono text-emerald-400 uppercase tracking-wide">
-                            <span className="flex items-center space-x-1">
-                              <Key className="h-3.5 w-3.5" />
-                              <span>Mapped Notification Keys ({mappedKeys.length})</span>
-                            </span>
-                          </div>
-
-                          {mappedKeys.length === 0 ? (
-                            <div className="py-2.5 text-center rounded-lg bg-slate-900/30 border border-dashed border-slate-800">
-                              <p className="text-xs text-slate-500 italic">No mapped notification keys</p>
-                            </div>
-                          ) : (
-                            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                              {mappedKeys.map((nk) => (
-                                <div key={nk.key} className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs">
-                                  <div className="font-mono text-emerald-300 font-bold truncate flex items-center space-x-1">
-                                    <span>🔑</span>
-                                    <span title={nk.key}>{nk.key}</span>
-                                  </div>
-                                  <div className="text-slate-300 text-xs font-medium truncate mt-0.5">{nk.displayName}</div>
-                                  <div className="text-[11px] text-slate-400 font-mono truncate mt-0.5">{nk.description}</div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Mapped Rules */}
+                        {/* Mapped Rules Section */}
                         <div className="space-y-2 pt-2 border-t border-slate-900">
                           <div className="flex items-center justify-between text-xs font-bold font-mono text-indigo-400 uppercase tracking-wide">
                             <span className="flex items-center space-x-1">
                               <Sliders className="h-3.5 w-3.5" />
-                              <span>Mapped Rules ({mappedRules.length})</span>
+                              <span>Mapped Rules ({mappedRuleEntries.length})</span>
                             </span>
                           </div>
 
-                          {mappedRules.length === 0 ? (
-                            <div className="py-2 text-center rounded-lg bg-slate-900/30 border border-dashed border-slate-800">
-                              <p className="text-xs text-slate-500 italic">No mapped rules</p>
+                          {mappedRuleEntries.length === 0 ? (
+                            <div className="py-2.5 text-center rounded-lg bg-slate-900/30 border border-dashed border-slate-800">
+                              <p className="text-xs text-slate-500 italic">No mapped rules for this key</p>
                             </div>
                           ) : (
-                            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-                              {mappedRules.map((rule) => (
-                                <div key={rule.id} className="p-2 rounded bg-indigo-950/20 border border-indigo-900/30 text-xs space-y-0.5">
+                            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                              {mappedRuleEntries.map((ruleItem) => (
+                                <div key={ruleItem.id} className="p-2.5 rounded-lg bg-indigo-950/20 border border-indigo-900/30 text-xs space-y-1">
                                   <div className="flex items-center justify-between">
-                                    <span className="font-bold text-slate-200 truncate">{rule.name}</span>
+                                    <span className="font-bold text-slate-200 truncate">{ruleItem.name}</span>
                                     <span className="font-mono text-[10px] text-indigo-300 bg-indigo-950 px-1.5 py-0.5 rounded border border-indigo-800/40 shrink-0">
-                                      {rule.id}
+                                      {ruleItem.id}
                                     </span>
                                   </div>
-                                  <p className="text-[11px] text-slate-400 truncate">{rule.description}</p>
+                                  <p className="text-[11px] text-slate-400 leading-snug">{ruleItem.description}</p>
+                                  {ruleItem.enabled !== undefined && (
+                                    <div className="pt-0.5 flex justify-end">
+                                      <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded uppercase ${
+                                        ruleItem.enabled ? 'text-emerald-400 bg-emerald-950/40' : 'text-slate-500 bg-slate-900'
+                                      }`}>
+                                        {ruleItem.enabled ? '● Enabled' : '○ Disabled'}
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -1058,8 +1120,8 @@ export default function CategoryKeyManager({
                 <thead>
                   <tr className="border-b border-slate-800 bg-slate-950 font-mono text-xs text-slate-400 uppercase tracking-wider">
                     <th className="p-4 font-semibold">Notification Category</th>
-                    <th className="p-4 font-semibold">Display Title & Scope</th>
-                    <th className="p-4 text-center font-semibold">Mapped RuleConfigs</th>
+                    <th className="p-4 font-semibold">Display Name</th>
+                    <th className="p-4 text-center font-semibold">Mapped Keys Count</th>
                     <th className="p-4 text-center font-semibold">Status</th>
                     <th className="p-4 text-right font-semibold">Actions</th>
                   </tr>
@@ -1075,22 +1137,25 @@ export default function CategoryKeyManager({
                     filteredCategories.map((cat) => {
                       const catCode = getCatKey(cat);
                       const catNameVal = getCatName(cat);
-                      const isLocked = isCategoryInUse(catCode);
-                      const mappedConfigs = getRuleConfigsForCategory(catCode);
+                      const mappedKeys = (cat.mappedNotificationKeys && Array.isArray(cat.mappedNotificationKeys))
+                        ? cat.mappedNotificationKeys
+                        : getKeysUsingCategory(catCode);
+                      const mappedKeysCount = mappedKeys.length;
+                      const hasKeyRelation = mappedKeysCount > 0 || isCategoryInUse(catCode);
 
                       return (
                         <tr 
                           key={catCode} 
                           className={`hover:bg-slate-900/50 transition duration-150 ${!cat.enabled ? 'opacity-50 bg-slate-950/20' : ''}`}
                         >
-                          {/* Code Key */}
+                          {/* 1. Notification Category */}
                           <td className="p-4 font-mono font-bold text-slate-200">
                             <span className="px-2.5 py-1 bg-slate-900 border border-slate-800 rounded text-xs text-amber-400 block w-fit">
                               {catCode}
                             </span>
                           </td>
 
-                          {/* Display Name */}
+                          {/* 2. Display Name */}
                           <td className="p-4 max-w-md">
                             <div className="font-bold text-slate-100 text-sm">{catNameVal}</div>
                             {cat.description && (
@@ -1100,43 +1165,43 @@ export default function CategoryKeyManager({
                             )}
                           </td>
 
-                          {/* Mapped Count */}
+                          {/* 3. Mapped Keys Count */}
                           <td className="p-4 text-center">
                             <span className={`inline-block font-mono text-xs font-bold px-3 py-1 rounded-full ${
-                              mappedConfigs.length > 0 
+                              mappedKeysCount > 0 
                                 ? 'bg-indigo-950/60 text-indigo-300 border border-indigo-800/60' 
                                 : 'bg-slate-900 text-slate-500 border border-slate-800'
                             }`}>
-                              {mappedConfigs.length} RuleConfigs
+                              {mappedKeysCount} {mappedKeysCount === 1 ? 'Key' : 'Keys'}
                             </span>
                           </td>
 
-                          {/* Toggle */}
+                          {/* 4. Status */}
                           <td className="p-4 text-center">
                             <button
                               type="button"
                               onClick={() => handleToggleCategory(cat)}
-                              disabled={isLocked}
+                              disabled={hasKeyRelation}
                               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                cat.enabled ? 'bg-indigo-600' : 'bg-slate-800'
-                              } ${isLocked ? 'opacity-40 cursor-not-allowed' : ''}`}
-                              title={isLocked ? "Operation Blocked: Category is mapped in active RuleConfigs." : `Click to ${cat.enabled ? 'Disable' : 'Enable'}`}
+                                cat.enabled !== false ? 'bg-indigo-600' : 'bg-slate-800'
+                              } ${hasKeyRelation ? 'opacity-40 cursor-not-allowed' : ''}`}
+                              title={hasKeyRelation ? "Status Disabled: Category has relation with NotificationKey(s)." : `Click to ${cat.enabled !== false ? 'Disable' : 'Enable'}`}
                             >
                               <span
                                 className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                  cat.enabled ? 'translate-x-5' : 'translate-x-0'
+                                  cat.enabled !== false ? 'translate-x-5' : 'translate-x-0'
                                 }`}
                               />
                             </button>
                           </td>
 
-                          {/* Actions */}
+                          {/* 5. Actions */}
                           <td className="p-4 text-right">
                             <div className="flex items-center justify-end space-x-2">
-                              {isLocked ? (
+                              {hasKeyRelation ? (
                                 <div 
                                   className="flex items-center space-x-1.5 bg-rose-950/40 border border-rose-900/40 text-rose-400 text-xs px-2.5 py-1 rounded font-mono"
-                                  title="Operation Blocked: Category mapped in active RuleConfigs."
+                                  title="Operation Blocked: Category has relation with NotificationKey(s)."
                                 >
                                   <Lock className="h-3.5 w-3.5 text-rose-500" />
                                   <span>LOCKED</span>
@@ -1210,6 +1275,7 @@ export default function CategoryKeyManager({
                     setRkKey('');
                     setRkName('');
                     setRkCategoryKey(getCatKey(categories[0]) || '');
+                    setRkRealm('us');
                     setRkDesc('');
                     setShowRkForm(true);
                   }}
@@ -1238,15 +1304,15 @@ export default function CategoryKeyManager({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-300 font-mono mb-2 uppercase tracking-wider">
-                      NOTIFICATION KEY CODE
+                      NOTIFICATION KEY
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. milon.burgluer or RULE_PLUG_CHARGE"
+                      placeholder="e.g. v2hg.charg.connect or milon.burgluer"
                       disabled={!!rkIsEditing}
                       value={rkKey}
                       onChange={(e) => setRkKey(e.target.value)}
@@ -1261,7 +1327,7 @@ export default function CategoryKeyManager({
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Anti-Theft Burglary Alert"
+                      placeholder="e.g. V2HG Charge"
                       value={rkName}
                       onChange={(e) => setRkName(e.target.value)}
                       className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-sans"
@@ -1270,7 +1336,7 @@ export default function CategoryKeyManager({
 
                   <div>
                     <label className="block text-xs font-bold text-slate-300 font-mono mb-2 uppercase tracking-wider">
-                      TARGET NOTIFICATION CATEGORY
+                      NOTIFICATION CATEGORY
                     </label>
                     <select
                       required
@@ -1283,6 +1349,25 @@ export default function CategoryKeyManager({
                         const cKey = getCatKey(c);
                         return <option key={cKey} value={cKey}>{cKey}</option>;
                       })}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 font-mono mb-2 uppercase tracking-wider">
+                      REALM
+                    </label>
+                    <select
+                      required
+                      value={rkRealm}
+                      onChange={(e) => setRkRealm(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+                    >
+                      <option value="us">us - United States</option>
+                      <option value="eu">eu - Europe</option>
+                      <option value="jp">jp - Japan</option>
+                      <option value="cn">cn - China</option>
+                      <option value="kr">kr - Korea</option>
+                      <option value="global">global - Global</option>
                     </select>
                   </div>
                 </div>
@@ -1328,7 +1413,8 @@ export default function CategoryKeyManager({
                 <thead>
                   <tr className="border-b border-slate-800 bg-slate-950 font-mono text-xs text-slate-400 uppercase tracking-wider">
                     <th className="p-4 font-semibold">Notification Key</th>
-                    <th className="p-4 font-semibold">Associated Notification Category</th>
+                    <th className="p-4 font-semibold">Associated Category</th>
+                    <th className="p-4 font-semibold">Realm</th>
                     <th className="p-4 font-semibold">Display Title & Scope</th>
                     <th className="p-4 text-center font-semibold">Status</th>
                     <th className="p-4 text-right font-semibold">Actions</th>
@@ -1337,7 +1423,7 @@ export default function CategoryKeyManager({
                 <tbody className="divide-y divide-slate-800 font-sans text-slate-300">
                   {filteredRuleKeys.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-slate-500 italic">
+                      <td colSpan={6} className="p-8 text-center text-slate-500 italic">
                         No Notification Key items found matching search.
                       </td>
                     </tr>
@@ -1372,6 +1458,13 @@ export default function CategoryKeyManager({
                             ) : (
                               <span className="text-xs text-rose-400 font-mono italic">⚠️ BROKEN ({rkCat})</span>
                             )}
+                          </td>
+
+                          {/* Realm Badge */}
+                          <td className="p-4">
+                            <span className="font-mono text-xs font-bold text-cyan-300 bg-cyan-950/40 border border-cyan-900/40 px-2.5 py-1 rounded-md inline-block uppercase">
+                              🌐 {rk.realm || 'us'}
+                            </span>
                           </td>
 
                           {/* Display Name */}

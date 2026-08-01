@@ -154,7 +154,14 @@ class ApiService {
     this.addHttpLog(initialLog);
 
     try {
-      const response = await fetch(`${this.baseUrl}${url}`, activeConfig);
+      let response: Response;
+      try {
+        response = await fetch(`${this.baseUrl}${url}`, activeConfig);
+      } catch (primaryErr) {
+        // Fallback to relative URL path if localhost:8080 fails
+        console.warn(`Primary fetch to ${this.baseUrl}${url} failed, trying relative path ${url}...`);
+        response = await fetch(url, activeConfig);
+      }
       
       // Execute all registered response interceptors
       let interceptedResponse = response.clone();
@@ -269,8 +276,20 @@ class ApiService {
     return this.get(`${SERVICE_ENDPOINTS.SETTING_SERVICE}/categories`);
   }
 
+  public async createCategory(categoryData: any): Promise<any> {
+    return this.post(`${SERVICE_ENDPOINTS.SETTING_SERVICE}/categories`, categoryData);
+  }
+
   public async fetchKeys(): Promise<any> {
     return this.get(`${SERVICE_ENDPOINTS.SETTING_SERVICE}/keys`);
+  }
+
+  public async createKey(keyData: any): Promise<any> {
+    return this.post(`${SERVICE_ENDPOINTS.SETTING_SERVICE}/keys`, keyData);
+  }
+
+  public async fetchMatrixByRealm(realm: string): Promise<any> {
+    return this.get(`${SERVICE_ENDPOINTS.SETTING_SERVICE}/matrix/${realm}`);
   }
 
   // Scheduler & Proactive Notification API Services

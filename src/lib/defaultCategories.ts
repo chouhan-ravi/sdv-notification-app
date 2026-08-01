@@ -80,11 +80,28 @@ export const DEFAULT_DYNAMIC_CATEGORIES: DynamicCategory[] = [
     description: 'Feature on demand category',
     isMandatory: true,
     mappedNotificationKeys: []
+  },
+  {
+    category: 'v2hg',
+    displayName: 'V2HG',
+    description: 'V2HG for EV vehicle',
+    isMandatory: false,
+    mappedNotificationKeys: [
+      {
+        key: 'v2hg.charg.connect',
+        displayName: 'V2HG Charge',
+        description: 'V2HG for EV vehicle',
+        category: true,
+        notificationCategory: 'v2hg',
+        realm: 'us'
+      }
+    ]
   }
 ];
 
 export const DEFAULT_DYNAMIC_NOTIFICATION_KEYS: DynamicKey[] = [
-  { key: 'milon.burgluer.handbrake.key', displayName: 'Milon Burgluer Hand Brakes', notificationCategory: 'milon.burglar.category', description: 'milon.burgluer.handbrake.key' },
+  { key: 'milon.burgluer.handbrake.key', displayName: 'Milon Burgluer Hand Brakes', notificationCategory: 'milon.burglar.category', description: 'milon.burgluer.handbrake.key', realm: 'us' },
+  { key: 'v2hg.charg.connect', displayName: 'V2HG Charge', notificationCategory: 'v2hg', category: true, realm: 'us', description: 'V2HG for EV vehicle' },
   { key: 'RULE_PLUG_CHARGE_IN_PROGRESS', displayName: 'Plug-n-Charge Active', notificationCategory: 'PLUG_N_CHARGE', enabled: true, description: 'Charging session started successfully.' },
   { key: 'RULE_PLUG_CHARGE_COMPLETED', displayName: 'Plug-n-Charge Completed', notificationCategory: 'PLUG_N_CHARGE', enabled: true, description: 'Charging session reached 100% capacity.' },
   { key: 'RULE_REM_START_SUCCESS_CONFIRM', displayName: 'Remote Start Succeeded', notificationCategory: 'VEHICLE_REMOTE_CONTROL', enabled: true, description: 'Engine started running via app request.' },

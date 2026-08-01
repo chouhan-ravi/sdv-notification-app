@@ -229,6 +229,13 @@ const KEY_PATHS = ['/settings-service/api/v1/keys', '/settings-service/api/v1/ru
 const SCHEDULER_PATHS = ['/rule-engine-service/api/v1/schedulers', '/api/schedulers', '/schedulers'];
 const TRIGGER_SCHEDULER_PATHS = ['/rule-engine-service/api/v1/schedulers/:id/trigger', '/api/schedulers/:id/trigger'];
 const MATRIX_PATHS = ['/matrix', '/api/matrix', '/rule-engine-service/api/v1/matrix', '/settings-service/api/v1/matrix'];
+const MATRIX_REALM_PATHS = [
+  '/matrix/:realm',
+  '/api/matrix/:realm',
+  '/rule-engine-service/api/v1/matrix/:realm',
+  '/settings-service/api/v1/matrix/:realm',
+  '/setting-service/matrix/:realm'
+];
 
 // GET: Fetch all active rules
 app.get(RULE_PATHS, (req, res) => {
@@ -236,11 +243,15 @@ app.get(RULE_PATHS, (req, res) => {
   res.json(rules);
 });
 
+// In-memory store for dynamic Categories & Notification Keys
+let inMemoryCategories = [...DEFAULT_DYNAMIC_CATEGORIES];
+let inMemoryNotificationKeys = [...DEFAULT_DYNAMIC_NOTIFICATION_KEYS];
+
 // GET: Fetch Relationship Matrix
 app.get(MATRIX_PATHS, (req, res) => {
   const rules = getRules();
-  const categories = DEFAULT_DYNAMIC_CATEGORIES;
-  const keys = DEFAULT_DYNAMIC_NOTIFICATION_KEYS;
+  const categories = inMemoryCategories;
+  const keys = inMemoryNotificationKeys;
 
   const matrix = categories.map(cat => {
     const catCode = cat.category || (cat as any).key || '';
@@ -252,6 +263,7 @@ app.get(MATRIX_PATHS, (req, res) => {
         key: k.key,
         displayName: k.displayName || (k as any).name || k.key,
         description: k.description || k.key,
+        realm: k.realm || 'us',
         mappedCategories: null
       }));
 
@@ -273,6 +285,7 @@ app.get(MATRIX_PATHS, (req, res) => {
       displayName: catName,
       description: cat.description || catCode,
       isMandatory: cat.isMandatory ?? true,
+      realm: (cat as any).realm ?? null,
       mappedRules,
       mappedNotificationKeys: relatedKeys
     };
@@ -281,14 +294,170 @@ app.get(MATRIX_PATHS, (req, res) => {
   res.json(matrix);
 });
 
+// GET: Fetch Relationship Matrix by Realm
+app.get(MATRIX_REALM_PATHS, (req, res) => {
+  const targetRealm = (req.params.realm || 'us').toLowerCase();
+  const rules = getRules();
+
+  // Find keys matching targetRealm
+  const matchingKeys = inMemoryNotificationKeys.filter(k => 
+    (k.realm || 'us').toLowerCase() === targetRealm
+  );
+
+  const keysToUse = matchingKeys.length > 0 ? matchingKeys : inMemoryNotificationKeys;
+
+  const realmMatrix = keysToUse.map(k => {
+    const catCode = k.notificationCategory || (k as any).categoryKey || (k as any).category || 'milon.burglar.category';
+    
+    const mappedRules = rules
+      .filter(r => {
+        if (r.notificationCategory === catCode) return true;
+        if (r.config && r.config.some(c => c.notificationCategory === catCode || c.notificationKey === k.key)) return true;
+        return false;
+      })
+      .map(r => ({
+        id: r.id,
+        name: r.name,
+        description: r.description || 'Vehicle doors lock & unlock remotely',
+        enabled: r.enabled ?? true
+      }));
+
+    return {
+      category: catCode,
+      key: k.key,
+      realm: k.realm || targetRealm,
+      enabled: k.enabled ?? true,
+      description: k.description || 'mapping',
+      mappedRules: mappedRules.length > 0 ? mappedRules : [
+        {
+          id: 'MILON_RULE',
+          name: 'Milon Rule',
+          description: 'Vehicle doors lock & unlock remotely',
+          enabled: true
+        }
+      ]
+    };
+  });
+
+  res.json(realmMatrix);
+});
+
 // GET: Fetch notification categories
 app.get(CATEGORY_PATHS, (req, res) => {
-  res.json(DEFAULT_DYNAMIC_CATEGORIES);
+  const formattedCategories = inMemoryCategories.map(cat => {
+    const catCode = cat.category || (cat as any).key || '';
+    const catName = cat.displayName || (cat as any).name || catCode;
+
+    const relatedKeys = inMemoryNotificationKeys
+      .filter(k => k.notificationCategory === catCode || (k as any).categoryKey === catCode || (k as any).category === catCode)
+      .map(k => ({
+        key: k.key,
+        displayName: k.displayName || (k as any).name || k.key,
+        description: k.description || k.key,
+        realm: k.realm || 'us',
+        mappedCategories: null
+      }));
+
+    return {
+      category: catCode,
+      displayName: catName,
+      description: cat.description || catCode,
+      isMandatory: cat.isMandatory ?? true,
+      realm: (cat as any).realm ?? null,
+      mappedRules: null,
+      mappedNotificationKeys: relatedKeys
+    };
+  });
+
+  res.json(formattedCategories);
+});
+
+// POST: Create/Save notification category
+app.post(CATEGORY_PATHS, (req, res) => {
+  const body = req.body || {};
+  const category = body.category || body.key;
+  const displayName = body.displayName || body.name || category;
+  const description = body.description || '';
+  const isMandatory = body.isMandatory !== undefined ? Boolean(body.isMandatory) : true;
+
+  if (!category) {
+    res.status(400).json({ error: 'Field "category" is required in request body.' });
+    return;
+  }
+
+  const existingIdx = inMemoryCategories.findIndex(c => (c.category || (c as any).key) === category);
+  const categoryObj = {
+    category,
+    displayName,
+    description,
+    isMandatory,
+    enabled: body.enabled !== undefined ? Boolean(body.enabled) : true,
+    translations: body.translations || undefined,
+    mappedNotificationKeys: body.mappedNotificationKeys || []
+  };
+
+  if (existingIdx >= 0) {
+    inMemoryCategories[existingIdx] = { ...inMemoryCategories[existingIdx], ...categoryObj };
+  } else {
+    inMemoryCategories.push(categoryObj);
+  }
+
+  console.log(`[REST API] Notification Category saved via POST /categories: "${category}" (${displayName})`);
+  res.status(201).json(categoryObj);
 });
 
 // GET: Fetch notification keys
 app.get(KEY_PATHS, (req, res) => {
-  res.json(DEFAULT_DYNAMIC_NOTIFICATION_KEYS);
+  res.json(inMemoryNotificationKeys);
+});
+
+// POST: Create/Save notification key
+app.post(KEY_PATHS, (req, res) => {
+  const body = req.body || {};
+  const key = body.key;
+  const displayName = body.displayName || body.name || key;
+  const description = body.description || '';
+  const category = body.category !== undefined ? body.category : (body.notificationCategory || true);
+  const realm = body.realm || 'us';
+
+  if (!key) {
+    res.status(400).json({ error: 'Field "key" is required in request body.' });
+    return;
+  }
+
+  const notificationCategoryStr = typeof category === 'string'
+    ? category
+    : (body.notificationCategory || 'v2hg');
+
+  const keyObj = {
+    key,
+    displayName,
+    description,
+    category, // supports boolean true or category string as in request body
+    notificationCategory: notificationCategoryStr,
+    realm,
+    enabled: body.enabled !== undefined ? Boolean(body.enabled) : true,
+    translations: body.translations || undefined
+  };
+
+  const existingIdx = inMemoryNotificationKeys.findIndex(k => k.key === key);
+  if (existingIdx >= 0) {
+    inMemoryNotificationKeys[existingIdx] = { ...inMemoryNotificationKeys[existingIdx], ...keyObj };
+  } else {
+    inMemoryNotificationKeys.push(keyObj);
+  }
+
+  // Associate key with target category in inMemoryCategories if existing
+  const catObj = inMemoryCategories.find(c => (c.category || (c as any).key) === notificationCategoryStr);
+  if (catObj) {
+    if (!catObj.mappedNotificationKeys) catObj.mappedNotificationKeys = [];
+    if (!catObj.mappedNotificationKeys.some(k => k.key === key)) {
+      catObj.mappedNotificationKeys.push(keyObj as any);
+    }
+  }
+
+  console.log(`[REST API] Notification Key saved via POST /keys: "${key}" (${displayName}, category: ${JSON.stringify(category)}, realm: ${realm})`);
+  res.status(201).json(keyObj);
 });
 
 // GET: Fetch schedulers

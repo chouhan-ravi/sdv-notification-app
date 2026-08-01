@@ -226,6 +226,8 @@ export interface DynamicKey {
   displayName: string;
   description?: string;
   notificationCategory?: string;
+  category?: boolean | string;
+  realm?: string;
   enabled?: boolean;
   translations?: KeyTranslation[];
 }
@@ -250,6 +252,7 @@ export interface MatrixMappedKey {
   key: string;
   displayName: string;
   description: string;
+  realm?: string | null;
   mappedCategories: any;
 }
 
@@ -258,6 +261,23 @@ export interface MatrixCategoryItem {
   displayName: string;
   description: string;
   isMandatory: boolean;
+  realm?: string | null;
   mappedRules: MatrixMappedRule[];
   mappedNotificationKeys: MatrixMappedKey[];
+}
+
+export interface RealmMatrixRule {
+  id: string;
+  name: string;
+  description: string;
+  enabled?: boolean;
+}
+
+export interface RealmMatrixMappingRecord {
+  category: string;
+  key: string;
+  realm: string;
+  enabled: boolean;
+  description: string;
+  mappedRules: RealmMatrixRule[];
 }
