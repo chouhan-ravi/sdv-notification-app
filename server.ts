@@ -344,27 +344,44 @@ app.get(MATRIX_REALM_PATHS, (req, res) => {
 
 // GET: Fetch notification categories
 app.get(CATEGORY_PATHS, (req, res) => {
+  const rules = getRules();
   const formattedCategories = inMemoryCategories.map(cat => {
     const catCode = cat.category || (cat as any).key || '';
     const catName = cat.displayName || (cat as any).name || catCode;
 
-    const relatedKeys = inMemoryNotificationKeys
-      .filter(k => k.notificationCategory === catCode || (k as any).categoryKey === catCode || (k as any).category === catCode)
-      .map(k => ({
-        key: k.key,
-        displayName: k.displayName || (k as any).name || k.key,
-        description: k.description || k.key,
-        realm: k.realm || 'us',
-        mappedCategories: null
+    // mappedRules from cat object or computed from rules
+    let mappedRulesList = Array.isArray(cat.mappedRules) ? cat.mappedRules : null;
+    if (!mappedRulesList) {
+      const activeRules = rules.filter(r => 
+        r.notificationCategory === catCode || (r.config && r.config.some(c => c.notificationCategory === catCode))
+      );
+      mappedRulesList = activeRules.map(r => ({
+        id: r.id,
+        name: r.name,
+        description: r.description || 'Vehicle doors lock & unlock remotely',
+        enabled: r.enabled ?? true
       }));
+    }
+
+    // mappedNotificationKeys
+    let relatedKeys = (cat.mappedNotificationKeys && Array.isArray(cat.mappedNotificationKeys)) 
+      ? cat.mappedNotificationKeys 
+      : inMemoryNotificationKeys
+          .filter(k => k.notificationCategory === catCode || (k as any).categoryKey === catCode || (k as any).category === catCode)
+          .map(k => ({
+            key: k.key,
+            displayName: k.displayName || (k as any).name || k.key,
+            description: k.description || k.key,
+            mappedRules: (k as any).mappedRules || [],
+            mappedCategories: (k as any).mappedCategories || []
+          }));
 
     return {
       category: catCode,
       displayName: catName,
       description: cat.description || catCode,
       isMandatory: cat.isMandatory ?? true,
-      realm: (cat as any).realm ?? null,
-      mappedRules: null,
+      mappedRules: mappedRulesList,
       mappedNotificationKeys: relatedKeys
     };
   });
@@ -408,7 +425,54 @@ app.post(CATEGORY_PATHS, (req, res) => {
 
 // GET: Fetch notification keys
 app.get(KEY_PATHS, (req, res) => {
-  res.json(inMemoryNotificationKeys);
+  const rules = getRules();
+  const formattedKeys = inMemoryNotificationKeys.map(k => {
+    const kCode = k.key;
+    const kName = k.displayName || (k as any).name || kCode;
+    const catCode = k.notificationCategory || (k as any).categoryKey || 'milon.burglar.category';
+
+    let mappedRulesList = Array.isArray(k.mappedRules) ? k.mappedRules : null;
+    if (!mappedRulesList) {
+      const activeRules = rules.filter(r => 
+        r.notificationKey === kCode || (r.config && r.config.some(c => c.notificationKey === kCode))
+      );
+      mappedRulesList = activeRules.map(r => ({
+        id: r.id,
+        name: r.name,
+        description: r.description || 'Vehicle doors lock & unlock remotely',
+        enabled: r.enabled ?? true
+      }));
+    }
+
+    let mappedCategoriesList = Array.isArray(k.mappedNotificationCategories) ? k.mappedNotificationCategories : null;
+    if (!mappedCategoriesList) {
+      const parentCat = inMemoryCategories.find(c => (c.category || (c as any).key) === catCode);
+      if (parentCat) {
+        mappedCategoriesList = [
+          {
+            category: parentCat.category || (parentCat as any).key,
+            displayName: parentCat.displayName || parentCat.category,
+            description: parentCat.description || parentCat.category,
+            isMandatory: parentCat.isMandatory ?? true,
+            mappedRules: [],
+            mappedNotificationKeys: []
+          }
+        ];
+      } else {
+        mappedCategoriesList = [];
+      }
+    }
+
+    return {
+      key: kCode,
+      displayName: kName,
+      description: k.description || kCode,
+      mappedRules: mappedRulesList,
+      mappedNotificationCategories: mappedCategoriesList
+    };
+  });
+
+  res.json(formattedKeys);
 });
 
 // POST: Create/Save notification key

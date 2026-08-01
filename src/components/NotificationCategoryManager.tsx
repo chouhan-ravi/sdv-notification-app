@@ -76,6 +76,7 @@ export default function CategoryKeyManager({
   const [catKey, setCatKey] = useState('');
   const [catName, setCatName] = useState('');
   const [catDesc, setCatDesc] = useState('');
+  const [catIsMandatory, setCatIsMandatory] = useState<boolean>(true);
   const [catIsEditing, setCatIsEditing] = useState<string | null>(null);
   const [catSearch, setCatSearch] = useState('');
   const [showCatForm, setShowCatForm] = useState(false);
@@ -301,7 +302,7 @@ export default function CategoryKeyManager({
       category: formattedKey,
       displayName: catName.trim(),
       description: catDesc.trim(),
-      isMandatory: true,
+      isMandatory: catIsMandatory,
       enabled: true,
       translations: translationsArray.length > 0 ? translationsArray : undefined
     };
@@ -448,14 +449,16 @@ export default function CategoryKeyManager({
   const startCatEdit = (cat: DynamicCategory) => {
     const catCode = getCatKey(cat);
     const catNameVal = getCatName(cat);
-    if (isCategoryInUse(catCode)) {
-      triggerToast(`Operation Blocked: NotificationCategory "${catCode}" is mapped in active RuleConfig rules.`);
+    const mappedRulesList = Array.isArray(cat.mappedRules) ? cat.mappedRules : getRulesUsingCategory(catCode);
+    if (mappedRulesList && mappedRulesList.length > 0) {
+      triggerToast(`Operation Blocked: NotificationCategory "${catCode}" has ${mappedRulesList.length} mapped rule(s) and action is locked.`);
       return;
     }
     setCatIsEditing(catCode);
     setCatKey(catCode);
     setCatName(catNameVal);
     setCatDesc(cat.description || '');
+    setCatIsMandatory(cat.isMandatory ?? true);
 
     const initialTrans: Record<string, { name: string; description: string }> = {
       es: { name: '', description: '' },
@@ -483,8 +486,9 @@ export default function CategoryKeyManager({
   const startRkEdit = (rk: DynamicKey) => {
     const rkCode = getRkKey(rk);
     const rkNameVal = getRkName(rk);
-    if (isNotificationKeyInUse(rkCode)) {
-      triggerToast(`Operation Blocked: NotificationKey "${rkCode}" is mapped in active RuleConfig rules.`);
+    const mappedRulesList = Array.isArray(rk.mappedRules) ? rk.mappedRules : getRulesUsingNotificationKey(rkCode);
+    if (mappedRulesList && mappedRulesList.length > 0) {
+      triggerToast(`Operation Blocked: NotificationKey "${rkCode}" has ${mappedRulesList.length} mapped rule(s) and action is locked.`);
       return;
     }
     setRkIsEditing(rkCode);
@@ -520,8 +524,9 @@ export default function CategoryKeyManager({
   const handleToggleCategory = (cat: DynamicCategory) => {
     const catCode = getCatKey(cat);
     const catNameVal = getCatName(cat);
-    if (isCategoryInUse(catCode)) {
-      triggerToast(`Operation Blocked: NotificationCategory "${catCode}" is mapped in active RuleConfig rules.`);
+    const mappedRulesList = Array.isArray(cat.mappedRules) ? cat.mappedRules : getRulesUsingCategory(catCode);
+    if (mappedRulesList && mappedRulesList.length > 0) {
+      triggerToast(`Operation Blocked: NotificationCategory "${catCode}" has ${mappedRulesList.length} mapped rule(s) and action is locked.`);
       return;
     }
     onUpdateCategory({
@@ -535,8 +540,9 @@ export default function CategoryKeyManager({
   const handleToggleRuleKey = (rk: DynamicKey) => {
     const rkCode = getRkKey(rk);
     const rkNameVal = getRkName(rk);
-    if (isNotificationKeyInUse(rkCode)) {
-      triggerToast(`Operation Blocked: NotificationKey "${rkCode}" is mapped in active RuleConfig rules.`);
+    const mappedRulesList = Array.isArray(rk.mappedRules) ? rk.mappedRules : getRulesUsingNotificationKey(rkCode);
+    if (mappedRulesList && mappedRulesList.length > 0) {
+      triggerToast(`Operation Blocked: NotificationKey "${rkCode}" has ${mappedRulesList.length} mapped rule(s) and action is locked.`);
       return;
     }
     handleUpdateNk({
@@ -548,8 +554,10 @@ export default function CategoryKeyManager({
 
   // Delete Category
   const handleCatDelete = (key: string) => {
-    if (isCategoryInUse(key)) {
-      triggerToast(`Operation Blocked: NotificationCategory "${key}" is mapped in active RuleConfig rules.`);
+    const catObj = categories.find(c => getCatKey(c) === key);
+    const mappedRulesList = catObj && Array.isArray(catObj.mappedRules) ? catObj.mappedRules : getRulesUsingCategory(key);
+    if (mappedRulesList && mappedRulesList.length > 0) {
+      triggerToast(`Operation Blocked: NotificationCategory "${key}" has ${mappedRulesList.length} mapped rule(s) and action is locked.`);
       return;
     }
     if (confirm(`Are you sure you want to delete NotificationCategory "${key}"?`)) {
@@ -559,8 +567,10 @@ export default function CategoryKeyManager({
 
   // Delete NotificationKey
   const handleRkDelete = (key: string) => {
-    if (isNotificationKeyInUse(key)) {
-      triggerToast(`Operation Blocked: NotificationKey "${key}" is mapped in active RuleConfig rules.`);
+    const rkObj = activeNotificationKeys.find(r => getRkKey(r) === key);
+    const mappedRulesList = rkObj && Array.isArray(rkObj.mappedRules) ? rkObj.mappedRules : getRulesUsingNotificationKey(key);
+    if (mappedRulesList && mappedRulesList.length > 0) {
+      triggerToast(`Operation Blocked: NotificationKey "${key}" has ${mappedRulesList.length} mapped rule(s) and action is locked.`);
       return;
     }
     if (confirm(`Are you sure you want to delete NotificationKey "${key}"?`)) {
@@ -994,17 +1004,47 @@ export default function CategoryKeyManager({
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 font-mono mb-2 uppercase tracking-wider">
-                    DESCRIPTION / SCOPE
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder="Describe the category scope and type of notifications grouped under this category..."
-                    value={catDesc}
-                    onChange={(e) => setCatDesc(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-sans"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 font-mono mb-2 uppercase tracking-wider">
+                      DESCRIPTION / SCOPE
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Describe the category scope and type of notifications grouped under this category..."
+                      value={catDesc}
+                      onChange={(e) => setCatDesc(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-sans"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 font-mono mb-2 uppercase tracking-wider">
+                      MANDATORY STATUS (isMandatory)
+                    </label>
+                    <div className="flex items-center space-x-4 pt-2">
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="isMandatoryGroup"
+                          checked={catIsMandatory === true}
+                          onChange={() => setCatIsMandatory(true)}
+                          className="text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="text-xs font-mono font-bold text-rose-300 bg-rose-950/60 px-2 py-0.5 rounded border border-rose-800/60">TRUE (Mandatory)</span>
+                      </label>
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="isMandatoryGroup"
+                          checked={catIsMandatory === false}
+                          onChange={() => setCatIsMandatory(false)}
+                          className="text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="text-xs font-mono text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">FALSE (Optional)</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Locale Translations */}
@@ -1117,8 +1157,8 @@ export default function CategoryKeyManager({
                   <tr className="border-b border-slate-800 bg-slate-950 font-mono text-xs text-slate-400 uppercase tracking-wider">
                     <th className="p-4 font-semibold">Notification Category</th>
                     <th className="p-4 font-semibold">Display Name</th>
-                    <th className="p-4 text-center font-semibold">Mapped Keys Count</th>
-                    <th className="p-4 text-center font-semibold">Status</th>
+                    <th className="p-4 text-center font-semibold">Mapped Keys & Rules</th>
+                    <th className="p-4 text-center font-semibold">Mandatory</th>
                     <th className="p-4 text-right font-semibold">Actions</th>
                   </tr>
                 </thead>
@@ -1133,25 +1173,36 @@ export default function CategoryKeyManager({
                     filteredCategories.map((cat) => {
                       const catCode = getCatKey(cat);
                       const catNameVal = getCatName(cat);
-                      const mappedKeys = (cat.mappedNotificationKeys && Array.isArray(cat.mappedNotificationKeys))
+                      
+                      // 3. Mapped Keys -> Count from Mapped Keys
+                      const mappedKeysList = (cat.mappedNotificationKeys && Array.isArray(cat.mappedNotificationKeys))
                         ? cat.mappedNotificationKeys
                         : getKeysUsingCategory(catCode);
-                      const mappedKeysCount = mappedKeys.length;
-                      const hasKeyRelation = mappedKeysCount > 0 || isCategoryInUse(catCode);
+                      const mappedKeysCount = mappedKeysList.length;
+
+                      // 4. Mandatory -> refer to isMandatory
+                      const isMandatoryVal = Boolean(cat.isMandatory);
+
+                      // Action button is locked when "mappedRules" count is more than zero
+                      const mappedRulesList = Array.isArray(cat.mappedRules) 
+                        ? cat.mappedRules 
+                        : (getRulesUsingCategory(catCode).map(r => ({ id: r.id, name: r.name })));
+                      const mappedRulesCount = mappedRulesList ? mappedRulesList.length : 0;
+                      const isActionLocked = mappedRulesCount > 0;
 
                       return (
                         <tr 
                           key={catCode} 
-                          className={`hover:bg-slate-900/50 transition duration-150 ${!cat.enabled ? 'opacity-50 bg-slate-950/20' : ''}`}
+                          className={`hover:bg-slate-900/50 transition duration-150 ${!cat.enabled ? 'opacity-60 bg-slate-950/20' : ''}`}
                         >
-                          {/* 1. Notification Category */}
+                          {/* 1. Notification Category -> refer to Category */}
                           <td className="p-4 font-mono font-bold text-slate-200">
                             <span className="px-2.5 py-1 bg-slate-900 border border-slate-800 rounded text-xs text-amber-400 block w-fit">
                               {catCode}
                             </span>
                           </td>
 
-                          {/* 2. Display Name */}
+                          {/* 2. Display Name -> refer to displayName */}
                           <td className="p-4 max-w-md">
                             <div className="font-bold text-slate-100 text-sm">{catNameVal}</div>
                             {cat.description && (
@@ -1161,45 +1212,44 @@ export default function CategoryKeyManager({
                             )}
                           </td>
 
-                          {/* 3. Mapped Keys Count */}
+                          {/* 3. Mapped Keys & Rules -> Count from Mapped Keys & Mapped Rules */}
                           <td className="p-4 text-center">
-                            <span className={`inline-block font-mono text-xs font-bold px-3 py-1 rounded-full ${
-                              mappedKeysCount > 0 
-                                ? 'bg-indigo-950/60 text-indigo-300 border border-indigo-800/60' 
-                                : 'bg-slate-900 text-slate-500 border border-slate-800'
+                            <div className="flex items-center justify-center space-x-2">
+                              <span 
+                                className="px-2.5 py-1 rounded bg-indigo-950/60 text-indigo-300 border border-indigo-800/60 font-mono text-xs font-bold"
+                                title={`Mapped Keys: ${mappedKeysCount}`}
+                              >
+                                {mappedKeysCount} {mappedKeysCount === 1 ? 'Key' : 'Keys'}
+                              </span>
+                              <span 
+                                className="px-2.5 py-1 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-800/60 font-mono text-xs font-bold"
+                                title={`Mapped Rules: ${mappedRulesCount}`}
+                              >
+                                {mappedRulesCount} {mappedRulesCount === 1 ? 'Rule' : 'Rules'}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* 4. Mandatory -> refer to isMandatory */}
+                          <td className="p-4 text-center">
+                            <span className={`inline-block font-mono text-xs font-bold px-2.5 py-1 rounded uppercase ${
+                              isMandatoryVal
+                                ? 'bg-rose-950/60 text-rose-300 border border-rose-800/60'
+                                : 'bg-slate-900 text-slate-400 border border-slate-800'
                             }`}>
-                              {mappedKeysCount} {mappedKeysCount === 1 ? 'Key' : 'Keys'}
+                              {isMandatoryVal ? 'Mandatory' : 'Optional'}
                             </span>
                           </td>
 
-                          {/* 4. Status */}
-                          <td className="p-4 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleCategory(cat)}
-                              disabled={hasKeyRelation}
-                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                cat.enabled !== false ? 'bg-indigo-600' : 'bg-slate-800'
-                              } ${hasKeyRelation ? 'opacity-40 cursor-not-allowed' : ''}`}
-                              title={hasKeyRelation ? "Status Disabled: Category has relation with NotificationKey(s)." : `Click to ${cat.enabled !== false ? 'Disable' : 'Enable'}`}
-                            >
-                              <span
-                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                  cat.enabled !== false ? 'translate-x-5' : 'translate-x-0'
-                                }`}
-                              />
-                            </button>
-                          </td>
-
-                          {/* 5. Actions */}
+                          {/* 5. Actions -> Action button is locked when "mappedRules" count is more than zero */}
                           <td className="p-4 text-right">
                             <div className="flex items-center justify-end space-x-2">
-                              {hasKeyRelation ? (
+                              {isActionLocked ? (
                                 <div 
-                                  className="flex items-center space-x-1.5 bg-rose-950/40 border border-rose-900/40 text-rose-400 text-xs px-2.5 py-1 rounded font-mono"
-                                  title="Operation Blocked: Category has relation with NotificationKey(s)."
+                                  className="flex items-center space-x-1.5 bg-rose-950/40 border border-rose-900/40 text-rose-400 text-xs px-2.5 py-1.5 rounded font-mono font-bold w-fit ml-auto"
+                                  title={`Action button is locked because mappedRules count is ${mappedRulesCount}`}
                                 >
-                                  <Lock className="h-3.5 w-3.5 text-rose-500" />
+                                  <Lock className="h-3.5 w-3.5 text-rose-500 shrink-0" />
                                   <span>LOCKED</span>
                                 </div>
                               ) : (
@@ -1207,14 +1257,14 @@ export default function CategoryKeyManager({
                                   <button
                                     onClick={() => startCatEdit(cat)}
                                     className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-indigo-400 border border-slate-800 rounded-lg transition"
-                                    title="Edit NotificationCategory"
+                                    title="Edit Notification Category"
                                   >
                                     <Edit className="h-4 w-4" />
                                   </button>
                                   <button
                                     onClick={() => handleCatDelete(catCode)}
                                     className="p-2 bg-slate-900 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-800 hover:border-rose-900/40 rounded-lg transition"
-                                    title="Delete NotificationCategory"
+                                    title="Delete Notification Category"
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </button>
@@ -1409,17 +1459,16 @@ export default function CategoryKeyManager({
                 <thead>
                   <tr className="border-b border-slate-800 bg-slate-950 font-mono text-xs text-slate-400 uppercase tracking-wider">
                     <th className="p-4 font-semibold">Notification Key</th>
-                    <th className="p-4 font-semibold">Associated Category</th>
-                    <th className="p-4 font-semibold">Realm</th>
-                    <th className="p-4 font-semibold">Display Title & Scope</th>
-                    <th className="p-4 text-center font-semibold">Status</th>
+                    <th className="p-4 font-semibold">Display Name</th>
+                    <th className="p-4 font-semibold">Description</th>
+                    <th className="p-4 text-center font-semibold">Mapped Categories & Rules</th>
                     <th className="p-4 text-right font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800 font-sans text-slate-300">
                   {filteredRuleKeys.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-slate-500 italic">
+                      <td colSpan={5} className="p-8 text-center text-slate-500 italic">
                         No Notification Key items found matching search.
                       </td>
                     </tr>
@@ -1427,95 +1476,91 @@ export default function CategoryKeyManager({
                     filteredRuleKeys.map((rk) => {
                       const rkCode = getRkKey(rk);
                       const rkNameVal = getRkName(rk);
-                      const isLocked = isNotificationKeyInUse(rkCode);
-                      const rkCat = rk.notificationCategory || (rk as any).categoryKey;
-                      const parentCat = categories.find(c => getCatKey(c) === rkCat);
-                      const mappedConfigs = getRuleConfigsForKey(rkCode);
+                      
+                      // 1. Notification Key -> refer key
+                      // 2. Display Name -> refer displayName
+                      // 3. Description -> refer description
+
+                      // 4. Mapped Categories & Rules -> refer mappedNotificationCategories & mappedRules Counts
+                      const mappedCategoriesList = (rk.mappedNotificationCategories && Array.isArray(rk.mappedNotificationCategories))
+                        ? rk.mappedNotificationCategories
+                        : (categories.filter(c => getCatKey(c) === (rk.notificationCategory || (rk as any).categoryKey)));
+                      const mappedCategoriesCount = mappedCategoriesList.length;
+
+                      const mappedRulesList = (rk.mappedRules && Array.isArray(rk.mappedRules))
+                        ? rk.mappedRules
+                        : (getRulesUsingNotificationKey(rkCode).map(r => ({ id: r.id, name: r.name, description: r.description, enabled: r.enabled })));
+                      const mappedRulesCount = mappedRulesList ? mappedRulesList.length : 0;
+
+                      // 5. Actions -> blocked if mappedRules count is more than zero
+                      const isActionLocked = mappedRulesCount > 0;
 
                       return (
                         <tr 
                           key={rkCode} 
-                          className={`hover:bg-slate-900/50 transition duration-150 ${!rk.enabled ? 'opacity-50 bg-slate-950/20' : ''}`}
+                          className={`hover:bg-slate-900/50 transition duration-150 ${!rk.enabled ? 'opacity-60 bg-slate-950/20' : ''}`}
                         >
-                          {/* Code Key */}
+                          {/* 1. Notification Key -> refer key */}
                           <td className="p-4 font-mono font-bold text-slate-200">
-                            <span className="px-2.5 py-1 bg-slate-900 border border-slate-800 rounded text-xs text-emerald-400 flex items-center space-x-1.5 w-fit">
-                              <span>🔑</span>
-                              <span>{rkCode}</span>
+                            <span className="px-2.5 py-1 bg-slate-900 border border-slate-800 rounded text-xs text-amber-400 block w-fit">
+                              {rkCode}
                             </span>
                           </td>
 
-                          {/* Associated Category */}
-                          <td className="p-4">
-                            {parentCat ? (
-                              <span className="font-mono text-xs font-bold text-amber-300 bg-amber-950/40 border border-amber-900/40 px-2.5 py-1 rounded-md inline-block">
-                                {rkCat}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-rose-400 font-mono italic">⚠️ BROKEN ({rkCat})</span>
-                            )}
+                          {/* 2. Display Name -> refer displayName */}
+                          <td className="p-4 font-bold text-slate-100 text-sm">
+                            {rkNameVal}
                           </td>
 
-                          {/* Realm Badge */}
-                          <td className="p-4">
-                            <span className="font-mono text-xs font-bold text-cyan-300 bg-cyan-950/40 border border-cyan-900/40 px-2.5 py-1 rounded-md inline-block uppercase">
-                              🌐 {rk.realm || 'us'}
-                            </span>
+                          {/* 3. Description -> refer description */}
+                          <td className="p-4 max-w-xs">
+                            <div className="text-xs text-slate-300 leading-relaxed font-sans">
+                              {rk.description || rkCode}
+                            </div>
                           </td>
 
-                          {/* Display Name */}
-                          <td className="p-4 max-w-md">
-                            <div className="font-bold text-slate-100 text-sm">{rkNameVal}</div>
-                            {rk.description && (
-                              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                                {rk.description}
-                              </p>
-                            )}
-                          </td>
-
-                          {/* Status Toggle */}
+                          {/* 4. Mapped Categories & Rules -> refer mappedNotificationCategories & mappedRules Counts */}
                           <td className="p-4 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleRuleKey(rk)}
-                              disabled={isLocked}
-                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                rk.enabled ? 'bg-indigo-600' : 'bg-slate-800'
-                              } ${isLocked ? 'opacity-40 cursor-not-allowed' : ''}`}
-                              title={isLocked ? "Operation Blocked: NotificationKey is mapped in active RuleConfigs." : `Click to ${rk.enabled ? 'Disable' : 'Enable'}`}
-                            >
-                              <span
-                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                  rk.enabled ? 'translate-x-5' : 'translate-x-0'
-                                }`}
-                              />
-                            </button>
+                            <div className="flex items-center justify-center space-x-2">
+                              <span 
+                                className="px-2.5 py-1 rounded bg-indigo-950/60 text-indigo-300 border border-indigo-800/60 font-mono text-xs font-bold"
+                                title={`Mapped Categories: ${mappedCategoriesCount}`}
+                              >
+                                {mappedCategoriesCount} {mappedCategoriesCount === 1 ? 'Category' : 'Categories'}
+                              </span>
+                              <span 
+                                className="px-2.5 py-1 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-800/60 font-mono text-xs font-bold"
+                                title={`Mapped Rules: ${mappedRulesCount}`}
+                              >
+                                {mappedRulesCount} {mappedRulesCount === 1 ? 'Rule' : 'Rules'}
+                              </span>
+                            </div>
                           </td>
 
-                          {/* Actions */}
+                          {/* 5. Actions -> blocked if mappedRules count is more than zero */}
                           <td className="p-4 text-right">
                             <div className="flex items-center justify-end space-x-2">
-                              {isLocked ? (
+                              {isActionLocked ? (
                                 <div 
-                                  className="flex items-center space-x-1.5 bg-rose-950/40 border border-rose-900/40 text-rose-400 text-xs px-2.5 py-1 rounded font-mono"
-                                  title={`Locked by RuleConfig in: ${mappedConfigs[0]?.ruleName || 'Rule'}`}
+                                  className="flex items-center space-x-1.5 bg-rose-950/40 border border-rose-900/40 text-rose-400 text-xs px-2.5 py-1.5 rounded font-mono font-bold w-fit ml-auto"
+                                  title={`Action button is locked because mappedRules count is ${mappedRulesCount}`}
                                 >
-                                  <Lock className="h-3.5 w-3.5 text-rose-500" />
-                                  <span>LOCKED BY RULECONFIG</span>
+                                  <Lock className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+                                  <span>LOCKED</span>
                                 </div>
                               ) : (
                                 <>
                                   <button
                                     onClick={() => startRkEdit(rk)}
                                     className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-indigo-400 border border-slate-800 rounded-lg transition"
-                                    title="Edit NotificationKey"
+                                    title="Edit Notification Key"
                                   >
                                     <Edit className="h-4 w-4" />
                                   </button>
                                   <button
                                     onClick={() => handleRkDelete(rkCode)}
                                     className="p-2 bg-slate-900 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-800 hover:border-rose-900/40 rounded-lg transition"
-                                    title="Delete NotificationKey"
+                                    title="Delete Notification Key"
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </button>

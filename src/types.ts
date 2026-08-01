@@ -230,6 +230,20 @@ export interface DynamicKey {
   realm?: string;
   enabled?: boolean;
   translations?: KeyTranslation[];
+  mappedRules?: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    enabled?: boolean;
+  }> | null;
+  mappedNotificationCategories?: Array<{
+    category: string;
+    displayName: string;
+    description?: string;
+    isMandatory?: boolean;
+    mappedRules?: any[];
+    mappedNotificationKeys?: any[];
+  }> | null;
 }
 
 export interface DynamicCategory {
@@ -237,7 +251,23 @@ export interface DynamicCategory {
   displayName: string;
   description?: string;
   isMandatory?: boolean;
-  mappedNotificationKeys?: DynamicKey[];
+  realm?: string | null;
+  mappedRules?: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    enabled?: boolean;
+  }> | null;
+  mappedNotificationKeys?: Array<{
+    key: string;
+    displayName?: string;
+    description?: string;
+    realm?: string | null;
+    category?: boolean | string;
+    mappedRules?: any;
+    mappedCategories?: any;
+    notificationCategory?: string;
+  }> | null;
   enabled?: boolean;
   translations?: KeyTranslation[];
 }

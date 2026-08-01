@@ -44,7 +44,14 @@ export default function RuleFormModal({
     if (!catKey) return fallbackKeysList;
     const foundCat = categoriesList.find(c => getCatValue(c) === catKey);
     if (foundCat && Array.isArray(foundCat.mappedNotificationKeys)) {
-      return foundCat.mappedNotificationKeys;
+      return foundCat.mappedNotificationKeys.map((k: any) => ({
+        key: k.key,
+        displayName: k.displayName || k.key,
+        description: k.description,
+        realm: k.realm,
+        notificationCategory: k.notificationCategory || catKey,
+        enabled: k.enabled ?? true
+      }));
     }
     const matchingFromKeys = fallbackKeysList.filter(k => k.notificationCategory === catKey || (k as any).categoryKey === catKey);
     if (matchingFromKeys.length > 0) {
