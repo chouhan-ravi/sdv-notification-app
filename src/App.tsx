@@ -78,6 +78,15 @@ export default function App() {
   
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Route persistence across browser refreshes
+  const savedRoute = localStorage.getItem('sdv_last_route') || '/simulator';
+
+  useEffect(() => {
+    if (location.pathname && location.pathname !== '/') {
+      localStorage.setItem('sdv_last_route', location.pathname);
+    }
+  }, [location.pathname]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [ruleToEdit, setRuleToEdit] = useState<Rule | null>(null);
   const [activeNotificationKeyFilter, setActiveNotificationKeyFilter] = useState<string | null>(null);
@@ -1119,7 +1128,7 @@ export default function App() {
                 <Routes>
                   <Route
                     path="/"
-                    element={<Navigate to="/simulator" replace />}
+                    element={<Navigate to={savedRoute} replace />}
                   />
                   <Route
                     path="/simulator"
@@ -1292,7 +1301,7 @@ export default function App() {
                       </RouteDataLoader>
                     }
                   />
-                  <Route path="*" element={<Navigate to="/simulator" replace />} />
+                  <Route path="*" element={<Navigate to={savedRoute} replace />} />
                 </Routes>
               </React.Suspense>
 
