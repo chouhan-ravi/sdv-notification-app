@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Car, 
   Cloud, 
@@ -18,7 +18,16 @@ import {
   Globe,
   Radio,
   Server,
-  AlertCircle
+  AlertCircle,
+  Smartphone,
+  Share2,
+  Bell,
+  Wrench,
+  ShieldAlert,
+  Send,
+  Sliders,
+  Check,
+  ChevronRight
 } from 'lucide-react';
 
 interface LoginPageProps {
@@ -44,6 +53,54 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
   // SSO selection state
   const [selectedSSOProvider, setSelectedSSOProvider] = useState<string | null>(null);
+
+  // Live Simulated Alert Stream for Connected Vehicle Illustration
+  const [activeAlertIndex, setActiveAlertIndex] = useState(0);
+  const simulatedAlerts = [
+    {
+      id: 'ALT-8821-A',
+      title: 'High Battery Temp Warning',
+      source: 'EV Battery Management ECU',
+      target: 'Car Owner App + B2B Service Portal',
+      targetType: 'owner_b2b',
+      status: 'DISPATCHED',
+      badgeColor: 'bg-red-500/20 text-red-400 border-red-500/30'
+    },
+    {
+      id: 'ALT-9034-B',
+      title: 'Brake Pad Wear Threshold (85%)',
+      source: 'CAN-FD Chassis Telemetry',
+      target: '3rd-Party Service Center Network',
+      targetType: 'third_party',
+      status: 'AUTO-SCHEDULED',
+      badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+    },
+    {
+      id: 'ALT-1049-C',
+      title: 'Geofence Boundary Departure',
+      source: 'GPS / 5G Telematics Unit',
+      target: 'B2B Enterprise Fleet Control',
+      targetType: 'b2b',
+      status: 'NOTIFIED',
+      badgeColor: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
+    },
+    {
+      id: 'ALT-3312-D',
+      title: 'OTA Software Update Ready',
+      source: 'Cloud Firmware Repository',
+      target: 'Car Owner In-Dash Infotainment',
+      targetType: 'owner',
+      status: 'DELIVERED',
+      badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+    }
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveAlertIndex((prev) => (prev + 1) % simulatedAlerts.length);
+    }, 3200);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,6 +159,8 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
     setErrorMessage(null);
   };
 
+  const currentAlert = simulatedAlerts[activeAlertIndex];
+
   return (
     <div className="min-h-screen w-full bg-[#070614] text-slate-100 flex items-center justify-center p-4 md:p-8 relative overflow-hidden font-sans selection:bg-indigo-500 selection:text-white">
       {/* BACKGROUND GRAPHICS & MOTION EFFECTS */}
@@ -121,11 +180,12 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
       <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none animate-pulse duration-10000" />
 
       {/* MAIN CONTAINER CARD */}
-      <div className="w-full max-w-5xl bg-[#0b0a21]/90 border border-slate-800/80 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-xl grid grid-cols-1 lg:grid-cols-12 relative z-10 transition-all duration-300">
-        {/* LEFT COLUMN: AUTOMOTIVE & REMOTE CLOUD CONNECTIVITY VISUALIZER */}
-        <div className="lg:col-span-6 bg-gradient-to-br from-[#0e0c2a] via-[#120f38] to-[#080718] p-8 md:p-10 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-800/80 relative overflow-hidden">
+      <div className="w-full max-w-6xl bg-[#0b0a21]/95 border border-slate-800/80 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-xl grid grid-cols-1 lg:grid-cols-12 relative z-10 transition-all duration-300">
+        
+        {/* LEFT COLUMN: CONNECTED CAR SERVICES NOTIFICATIONS & EVENTS ILLUSTRATION */}
+        <div className="lg:col-span-7 bg-gradient-to-br from-[#0e0c2a] via-[#120f38] to-[#080718] p-6 md:p-8 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-800/80 relative overflow-hidden">
           
-          {/* Animated Connecting Cloud Waves */}
+          {/* Animated Connecting Cloud Waves SVG Pattern */}
           <div className="absolute inset-0 opacity-10 pointer-events-none">
             <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
               <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -136,7 +196,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
           </div>
 
           {/* Header Badge */}
-          <div className="relative z-10 space-y-6">
+          <div className="relative z-10 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-[#5969ff] to-[#2ec5d3] p-0.5 shadow-lg shadow-indigo-500/20 flex items-center justify-center">
@@ -147,100 +207,178 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 <div>
                   <h1 className="text-base font-extrabold tracking-wide text-white font-display flex items-center space-x-1.5">
                     <span>SDV CLOUD</span>
-                    <span className="text-[#5969ff] text-xs font-mono px-1.5 py-0.5 bg-indigo-950/80 border border-indigo-800/50 rounded-md">GATEWAY</span>
+                    <span className="text-[#2ec5d3] text-xs font-mono px-1.5 py-0.5 bg-cyan-950/80 border border-cyan-800/50 rounded-md">NOTIFICATION HUB</span>
                   </h1>
-                  <p className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">Remote Telematics & Rules Engine</p>
+                  <p className="text-[10px] text-slate-400 font-mono tracking-wider uppercase">Connected Vehicle Events & Alerts Engine</p>
                 </div>
               </div>
 
-              <div className="px-2.5 py-1 bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 text-[10px] font-mono font-bold rounded-full flex items-center space-x-1.5">
+              <div className="px-2.5 py-1 bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 text-[10px] font-mono font-bold rounded-full flex items-center space-x-1.5 shadow-sm">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-                <span>CAN-FD ACTIVE</span>
+                <span>EVENTS ROUTER ACTIVE</span>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <h2 className="text-2xl md:text-3xl font-extrabold text-white leading-tight font-display">
-                Next-Gen Automotive <br />
+            <div className="space-y-1">
+              <h2 className="text-xl md:text-2xl font-extrabold text-white leading-tight font-display">
+                Connected Vehicle Event Matrix <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2ec5d3] via-indigo-300 to-[#5969ff]">
-                  Remote Cloud Matrix
+                  Real-Time Notification Dispatch
                 </span>
               </h2>
-              <p className="text-xs text-slate-300 leading-relaxed font-sans">
-                Real-time over-the-air vehicle telemetry evaluation, dynamically mapping ECU event feeds with cloud-orchestrated rules.
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Automated multi-channel routing of vehicle telemetry alerts to <strong className="text-cyan-300">Car Owners</strong>, <strong className="text-indigo-300">B2B Fleets</strong>, and <strong className="text-emerald-300">3rd-Party Partners</strong>.
               </p>
             </div>
           </div>
 
-          {/* AUTOMOTIVE CLOUD CONNECTIVITY GRAPHIC */}
-          <div className="my-8 relative z-10 flex flex-col items-center justify-center py-4">
+          {/* ANIMATED DIAGRAM: CONNECTED CAR TO CLOUD TO RECIPIENTS */}
+          <div className="my-6 relative z-10 space-y-4">
             
-            {/* Outer Orbiting Ring */}
-            <div className="relative w-64 h-64 flex items-center justify-center">
+            {/* CENTRAL NETWORK DIAGRAM CARD */}
+            <div className="bg-slate-900/80 border border-slate-800/90 rounded-2xl p-4 shadow-xl backdrop-blur-md relative overflow-hidden">
               
-              <div className="absolute inset-0 rounded-full border border-dashed border-indigo-500/30 animate-spin [animation-duration:30s]" />
-              <div className="absolute inset-4 rounded-full border border-cyan-500/20 animate-spin [animation-duration:20s] [animation-direction:reverse]" />
-
-              {/* Central Glowing Hub */}
-              <div className="w-28 h-28 rounded-full bg-indigo-950/60 border border-indigo-500/40 p-3 shadow-2xl shadow-indigo-500/30 backdrop-blur-md flex flex-col items-center justify-center relative">
-                <div className="flex items-center space-x-1 text-indigo-300 animate-bounce duration-1000">
-                  <Cloud className="h-8 w-8 text-[#2ec5d3]" />
+              {/* TOP: Connected Vehicle Sensor Node */}
+              <div className="flex items-center justify-between bg-slate-950/90 border border-indigo-500/30 p-3 rounded-xl mb-4 relative">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-indigo-950 border border-indigo-700/60 rounded-lg text-indigo-400 animate-pulse">
+                    <Car className="h-5 w-5 text-indigo-400" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white flex items-center space-x-2">
+                      <span>Connected Vehicle (VIN #8821)</span>
+                      <span className="px-1.5 py-0.5 bg-indigo-900/60 border border-indigo-700/50 text-[9px] font-mono text-indigo-300 rounded">CAN-FD</span>
+                    </div>
+                    <div className="text-[10px] font-mono text-slate-400">ECU Sensors • GPS • Battery BARS • ADAS Events</div>
+                  </div>
                 </div>
-                <span className="text-[9px] font-mono font-bold text-slate-300 mt-1 uppercase tracking-wider">
-                  Cloud Gateway
-                </span>
-              </div>
 
-              {/* Orbiting Vehicle Node 1 */}
-              <div className="absolute w-full h-full pointer-events-none animate-spin [animation-duration:16s]">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-slate-900 border border-indigo-500/60 p-2 rounded-xl shadow-lg flex items-center space-x-1.5 pointer-events-auto">
-                  <Car className="h-4 w-4 text-emerald-400" />
-                  <span className="text-[9px] font-mono text-slate-200 font-bold">VIN #8821</span>
-                </div>
-              </div>
-
-              {/* Orbiting ECU Node 2 */}
-              <div className="absolute w-full h-full pointer-events-none animate-spin [animation-duration:22s] [animation-direction:reverse]">
-                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-slate-900 border border-cyan-500/60 p-2 rounded-xl shadow-lg flex items-center space-x-1.5 pointer-events-auto">
-                  <Cpu className="h-4 w-4 text-[#2ec5d3]" />
-                  <span className="text-[9px] font-mono text-slate-200 font-bold">ECU Gateway</span>
+                <div className="flex items-center space-x-1.5 text-[10px] font-mono text-cyan-400 font-bold bg-cyan-950/60 border border-cyan-800/50 px-2 py-1 rounded-md">
+                  <Radio className="h-3.5 w-3.5 animate-pulse" />
+                  <span>5G Telematics</span>
                 </div>
               </div>
 
-              {/* Orbiting Telemetry Node 3 */}
-              <div className="absolute w-full h-full pointer-events-none animate-spin [animation-duration:28s]">
-                <div className="absolute top-1/2 -right-4 -translate-y-1/2 bg-slate-900 border border-indigo-400/60 p-2 rounded-xl shadow-lg flex items-center space-x-1.5 pointer-events-auto">
-                  <Radio className="h-4 w-4 text-amber-400" />
-                  <span className="text-[9px] font-mono text-slate-200 font-bold">5G Telematics</span>
+              {/* CENTER: Cloud Gateway Event Processor & Rules Engine */}
+              <div className="flex flex-col items-center justify-center my-3 relative">
+                
+                {/* Flow Lines Downward with Animated Pulse */}
+                <div className="w-0.5 h-6 bg-gradient-to-b from-indigo-500 via-cyan-400 to-indigo-500 relative">
+                  <div className="absolute inset-0 bg-white rounded-full animate-ping opacity-75" />
                 </div>
+
+                <div className="w-full bg-gradient-to-r from-indigo-950/90 via-[#111030] to-indigo-950/90 border border-cyan-500/40 rounded-xl p-2.5 my-1 text-center shadow-lg relative flex items-center justify-between px-4">
+                  <div className="flex items-center space-x-2">
+                    <Cloud className="h-4 w-4 text-[#2ec5d3] animate-bounce" />
+                    <span className="text-[11px] font-mono font-bold text-slate-100 uppercase tracking-wider">
+                      Cloud Notification & Rules Gateway
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-[10px] font-mono text-emerald-400">
+                    <Zap className="h-3 w-3" />
+                    <span>Rule Match: 99.8%</span>
+                  </div>
+                </div>
+
+                {/* Flow Lines Branching Outward */}
+                <div className="w-full flex justify-between px-8 text-cyan-500/50">
+                  <div className="w-0.5 h-4 bg-cyan-500/60" />
+                  <div className="w-0.5 h-4 bg-indigo-500/60" />
+                  <div className="w-0.5 h-4 bg-emerald-500/60" />
+                </div>
+              </div>
+
+              {/* BOTTOM THREE DESTINATION CHANNELS */}
+              <div className="grid grid-cols-3 gap-2 pt-1">
+                
+                {/* DESTINATION 1: CAR OWNER */}
+                <div className={`p-2.5 rounded-xl border transition-all ${
+                  currentAlert.targetType.includes('owner') 
+                    ? 'bg-cyan-950/70 border-cyan-500/80 shadow-md shadow-cyan-500/20 ring-1 ring-cyan-500/50' 
+                    : 'bg-slate-950/60 border-slate-800 opacity-80'
+                }`}>
+                  <div className="flex items-center space-x-1.5 text-cyan-400 mb-1">
+                    <Smartphone className="h-3.5 w-3.5 shrink-0" />
+                    <span className="text-[10px] font-bold uppercase font-mono tracking-tight">Car Owners</span>
+                  </div>
+                  <p className="text-[9px] text-slate-300 leading-tight">Mobile Push • In-Dash Alerts • iOS/Android Sync</p>
+                </div>
+
+                {/* DESTINATION 2: B2B / OEM FLEET */}
+                <div className={`p-2.5 rounded-xl border transition-all ${
+                  currentAlert.targetType.includes('b2b') 
+                    ? 'bg-indigo-950/70 border-indigo-500/80 shadow-md shadow-indigo-500/20 ring-1 ring-indigo-500/50' 
+                    : 'bg-slate-950/60 border-slate-800 opacity-80'
+                }`}>
+                  <div className="flex items-center space-x-1.5 text-indigo-400 mb-1">
+                    <Building2 className="h-3.5 w-3.5 shrink-0" />
+                    <span className="text-[10px] font-bold uppercase font-mono tracking-tight">B2B & OEM Fleet</span>
+                  </div>
+                  <p className="text-[9px] text-slate-300 leading-tight">Fleet Telematics Dashboard • Enterprise Webhook</p>
+                </div>
+
+                {/* DESTINATION 3: 3RD-PARTY SERVICES */}
+                <div className={`p-2.5 rounded-xl border transition-all ${
+                  currentAlert.targetType.includes('third_party') 
+                    ? 'bg-emerald-950/70 border-emerald-500/80 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-500/50' 
+                    : 'bg-slate-950/60 border-slate-800 opacity-80'
+                }`}>
+                  <div className="flex items-center space-x-1.5 text-emerald-400 mb-1">
+                    <Wrench className="h-3.5 w-3.5 shrink-0" />
+                    <span className="text-[10px] font-bold uppercase font-mono tracking-tight">3rd-Party Hub</span>
+                  </div>
+                  <p className="text-[9px] text-slate-300 leading-tight">Roadside • EV Smart Grid • Insurance Partner API</p>
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* LIVE ANIMATED EVENT TICKER CARD */}
+            <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between shadow-inner">
+              <div className="flex items-center space-x-3 overflow-hidden">
+                <div className="p-1.5 bg-slate-900 border border-slate-800 rounded-lg shrink-0">
+                  <Bell className="h-4 w-4 text-amber-400 animate-bounce" />
+                </div>
+                <div className="truncate">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] font-mono text-slate-400">{currentAlert.id}</span>
+                    <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border ${currentAlert.badgeColor}`}>
+                      {currentAlert.status}
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-white truncate">
+                    {currentAlert.title}
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono truncate">
+                    Target: <span className="text-cyan-300">{currentAlert.target}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="shrink-0 pl-2">
+                <div className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
               </div>
             </div>
 
-            {/* Live Telemetry Ping Status */}
-            <div className="mt-4 px-4 py-2 bg-slate-900/80 border border-slate-800 rounded-xl text-[11px] font-mono text-slate-300 flex items-center space-x-3 shadow-inner">
-              <Activity className="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
-              <span>Latency: <strong className="text-emerald-400 font-mono">12ms</strong></span>
-              <span className="text-slate-600">|</span>
-              <span>ISO 26262 ASIL-D</span>
-            </div>
           </div>
 
           {/* Bottom Security Specs Footer */}
-          <div className="relative z-10 pt-4 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-400">
+          <div className="relative z-10 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-400">
             <div className="flex items-center space-x-1.5">
               <ShieldCheck className="h-4 w-4 text-[#5969ff]" />
-              <span>Zero-Trust Token Sync</span>
+              <span>ISO 26262 & UNECE WP.29 Compliant</span>
             </div>
             <span>v2.4.0-PROD</span>
           </div>
         </div>
 
         {/* RIGHT COLUMN: LOGIN / FORGOT PASSWORD / SSO FORM PANEL */}
-        <div className="lg:col-span-6 p-8 md:p-10 flex flex-col justify-between bg-[#0b0a21]">
+        <div className="lg:col-span-5 p-6 md:p-8 flex flex-col justify-between bg-[#0b0a21]">
           
           {/* MODE 1: STANDARD LOGIN FORM */}
           {mode === 'login' && (
-            <div className="space-y-6 my-auto transition-all duration-300">
+            <div className="space-y-5 my-auto transition-all duration-300">
               <div className="space-y-1">
                 <h2 className="text-xl font-extrabold text-white font-display tracking-tight flex items-center space-x-2">
                   <span>Sign In to Telematics Console</span>
@@ -257,7 +395,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 </div>
               )}
 
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
+              <form onSubmit={handleLoginSubmit} className="space-y-3.5">
                 
                 {/* Email Input */}
                 <div className="space-y-1.5">
@@ -312,7 +450,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 </div>
 
                 {/* Remember Me & Auto-Sync */}
-                <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center justify-between pt-0.5">
                   <label className="flex items-center space-x-2 text-xs text-slate-400 cursor-pointer select-none">
                     <input 
                       type="checkbox"
@@ -350,7 +488,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
               </form>
 
               {/* DIVIDER */}
-              <div className="relative flex items-center justify-center py-2">
+              <div className="relative flex items-center justify-center py-1">
                 <div className="border-t border-slate-800 w-full" />
                 <span className="bg-[#0b0a21] px-3 text-[10px] font-mono text-slate-500 uppercase tracking-widest shrink-0">
                   OR ENTERPRISE SINGLE SIGN-ON
@@ -358,7 +496,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
               </div>
 
               {/* SINGLE SIGN-ON (SSO) ALTERNATIVE LOGIN BUTTONS */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
                   onClick={() => handleSSOLogin('Azure AD Fleet IAM')}
@@ -379,7 +517,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
               </div>
 
               {/* QUICK DEMO PRESET FILL */}
-              <div className="pt-2 bg-slate-950/60 border border-slate-800/80 rounded-xl p-3 flex items-center justify-between">
+              <div className="pt-2 bg-slate-950/60 border border-slate-800/80 rounded-xl p-2.5 flex items-center justify-between">
                 <div className="flex items-center space-x-2 text-xs text-slate-400">
                   <Server className="h-3.5 w-3.5 text-amber-400" />
                   <span>Quick Demo Login:</span>
