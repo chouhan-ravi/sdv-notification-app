@@ -206,7 +206,7 @@ export default function CategoryKeyManager({
     if (activeTab === 'visual') {
       fetchRealmMatrixData(selectedRealmScope);
     }
-  }, [activeTab, selectedRealmScope, categories, activeNotificationKeys, rules]);
+  }, [activeTab, selectedRealmScope]);
 
   // Helper: check if NotificationCategory is in use in rules matrix or mapped to NotificationKey
   const getRulesUsingCategory = (key: string): Rule[] => {
